@@ -1,0 +1,6 @@
+services:
+  trufas-app:
+    build: .
+    restart: always
+    ports:
+      - "8080:80" # Vai rodar na porta 8080 do seu servidor

@@ -1,0 +1,104 @@
+/* src/App.css */
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, sans-serif;
+  background-color: #f1f5f9; /* Fundo cinza bem claro para destacar os cartões brancos */
+}
+
+/* Layout Principal */
+.app-layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+/* ================= BARRA LATERAL (SIDEBAR) ================= */
+.sidebar {
+  width: 260px;
+  background-color: #0f172a; /* Azul super escuro, quase preto */
+  color: white;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 4px 0 15px rgba(0, 0, 0, 0.1);
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  z-index: 50;
+}
+
+.sidebar-header {
+  padding: 30px 20px;
+  border-bottom: 1px solid #1e293b;
+  text-align: center;
+}
+
+.sidebar-header h2 {
+  margin: 0;
+  color: #db2777; /* Rosa para combinar com a loja */
+  font-size: 1.6rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+}
+
+.sidebar-nav {
+  flex: 1;
+  padding: 20px 15px;
+}
+
+.sidebar-nav ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px; /* Espaço entre os botões */
+}
+
+.sidebar-nav a {
+  display: flex;
+  align-items: center;
+  padding: 14px 16px;
+  color: #94a3b8; /* Letra cinza clara quando não está selecionado */
+  text-decoration: none;
+  font-weight: 600;
+  font-size: 1.05rem;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+}
+
+/* Efeito ao passar o mouse */
+.sidebar-nav a:hover {
+  background-color: #1e293b;
+  color: white;
+  transform: translateX(5px); /* Dá um pulinho suave para a direita */
+}
+
+/* Efeito quando a aba está SELECIONADA */
+.sidebar-nav a.active-link {
+  background-color: #db2777; /* Fundo rosa */
+  color: white;
+  box-shadow: 0 4px 6px -1px rgba(219, 39, 119, 0.4);
+}
+
+/* ================= ÁREA DO CONTEÚDO (DIREITA) ================= */
+.content-area {
+  flex: 1;
+  padding: 40px;
+  overflow-y: auto;
+  position: relative;
+}
+
+/* Ajuste para telas menores (Tablets) */
+@media (max-width: 768px) {
+  .app-layout {
+    flex-direction: column;
+  }
+  .sidebar {
+    width: 100%;
+    height: auto;
+    position: relative;
+  }
+  .content-area {
+    padding: 20px;
+  }
+}

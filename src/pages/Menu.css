@@ -1,0 +1,62 @@
+/* src/pages/Menu.css */
+
+.menu-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  color: #334155;
+  font-family: system-ui, -apple-system, sans-serif;
+  padding-bottom: 80px; /* Espaço para o botão flutuante não tampar nada */
+}
+
+/* Dashboard Cards (Top) */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 20px;
+  margin-bottom: 30px;
+}
+
+.dash-card {
+  background: white;
+  padding: 20px;
+  border-radius: 12px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+  border: 1px solid #f1f5f9;
+  text-align: center;
+}
+
+.dash-card h3 { margin: 0 0 10px 0; font-size: 1rem; color: #64748b; }
+.dash-card p { margin: 0; font-size: 2.5rem; font-weight: 800; color: #0f172a; }
+
+/* Status do Estoque */
+.status-ok { background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
+.status-falta { background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
+
+/* Botão Flutuante (FAB) */
+.fab-button {
+  position: fixed;
+  bottom: 30px;
+  right: 30px;
+  background-color: #ec4899; /* Rosa bonito */
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 65px;
+  height: 65px;
+  font-size: 30px;
+  box-shadow: 0 10px 15px -3px rgba(236, 72, 153, 0.4);
+  cursor: pointer;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+}
+
+.fab-button:hover {
+  transform: scale(1.05);
+  box-shadow: 0 15px 20px -3px rgba(236, 72, 153, 0.5);
+  background-color: #db2777;
+}
+
+.fab-button:active { transform: scale(0.95); }

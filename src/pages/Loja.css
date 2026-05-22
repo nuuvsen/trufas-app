@@ -1,0 +1,94 @@
+/* src/pages/Loja.css */
+.loja-wrapper {
+  background-color: #f8fafc;
+  min-height: 100vh;
+  padding: 20px;
+  font-family: system-ui, -apple-system, sans-serif;
+  color: #334155;
+  padding-bottom: 100px;
+}
+
+.loja-container {
+  max-width: 500px; /* Tamanho de tela de celular */
+  margin: 0 auto;
+}
+
+.loja-header {
+  text-align: center;
+  margin-bottom: 30px;
+}
+.loja-header h1 { color: #db2777; font-size: 2rem; margin: 0; }
+.loja-header p { color: #64748b; margin-top: 5px; }
+
+.login-box {
+  background: white; padding: 25px; border-radius: 16px;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1); text-align: center;
+}
+
+.loja-input {
+  width: 100%; padding: 15px; border: 2px solid #e2e8f0;
+  border-radius: 12px; font-size: 1.1rem; margin-bottom: 15px; text-align: center;
+}
+.loja-input:focus { border-color: #db2777; outline: none; }
+
+.loja-btn {
+  width: 100%; padding: 15px; background: #db2777; color: white;
+  border: none; border-radius: 12px; font-size: 1.1rem; font-weight: bold; cursor: pointer;
+}
+.loja-btn:hover { background: #be185d; }
+
+.trufa-card {
+  background: white; border-radius: 16px; padding: 15px; margin-bottom: 15px;
+  display: flex; justify-content: space-between; align-items: center;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+.trufa-info h3 { margin: 0 0 5px 0; color: #0f172a; }
+.trufa-info p { margin: 0; color: #10b981; font-weight: bold; font-size: 1.1rem; }
+
+.contador-btn {
+  background: #f1f5f9; border: none; width: 35px; height: 35px;
+  border-radius: 50%; font-size: 1.2rem; font-weight: bold; cursor: pointer; color: #db2777;
+}
+
+.carrinho-bar {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: white; padding: 20px; box-shadow: 0 -4px 6px -1px rgba(0,0,0,0.1);
+  display: flex; justify-content: space-between; align-items: center; z-index: 100;
+}
+
+/* ================= ANIMAÇÃO DA VITRINE (CARROSSEL INFINITO) ================= */
+@keyframes scrollInfinito {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-100%); }
+}
+
+.vitrine-container {
+  overflow: hidden;
+  width: 100%;
+  position: relative;
+  /* Removi o fundo branco para mesclar melhor com o site */
+  padding: 10px 0;
+  margin-bottom: 25px;
+}
+
+.vitrine-track {
+  display: flex;
+  width: max-content; /* Faz a largura se adaptar ao conteúdo */
+  animation: scrollInfinito 45s linear infinite; /* 20 segundos para dar a volta */
+}
+
+/* Pausa a animação se o cliente colocar o dedo/mouse em cima da foto */
+.vitrine-track:hover {
+  animation-play-state: paused;
+}
+
+.vitrine-track img {
+  width: 200px;
+  height: 200px;
+  object-fit: cover;
+  border-radius: 16px;
+  margin: 0 10px;
+  flex-shrink: 0;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+}

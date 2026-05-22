@@ -1,0 +1,117 @@
+/* src/pages/Clientes.css */
+
+.clientes-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  color: #334155;
+  font-family: system-ui, -apple-system, sans-serif;
+}
+
+.header-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  color: #0f172a;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+  border: 1px solid #f1f5f9;
+}
+
+.form-grid {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  align-items: flex-end;
+}
+
+.input-group {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 150px;
+}
+
+.input-group label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #475569;
+}
+
+.modern-input {
+  padding: 12px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 1rem;
+  color: #0f172a;
+  transition: all 0.2s ease;
+  outline: none;
+  background-color: #f8fafc;
+}
+
+.modern-input:focus {
+  border-color: #8b5cf6;
+  background-color: white;
+  box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.15);
+}
+
+.btn {
+  padding: 12px 20px;
+  border-radius: 8px;
+  border: none;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-size: 0.95rem;
+}
+
+.btn:active { transform: translateY(1px); }
+
+.btn-success { background: #8b5cf6; color: white; } /* Roxo para clientes */
+.btn-success:hover { background: #7c3aed; }
+.btn-primary { background: #3b82f6; color: white; }
+.btn-primary:hover { background: #2563eb; }
+.btn-warning { background: #f59e0b; color: white; padding: 8px 14px; font-size: 0.85rem;}
+.btn-warning:hover { background: #d97706; }
+.btn-danger { background: #ef4444; color: white; padding: 8px 14px; font-size: 0.85rem;}
+.btn-danger:hover { background: #dc2626; }
+.btn-secondary { background: #e2e8f0; color: #475569; }
+.btn-secondary:hover { background: #cbd5e1; }
+
+.btn-add-trufa {
+  background: #10b981;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 12px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.btn-add-trufa:hover { background: #059669; }
+
+.table-container { overflow-x: auto; }
+.modern-table { width: 100%; border-collapse: collapse; text-align: left; }
+.modern-table th { padding: 16px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; }
+.modern-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
+.modern-table tr:last-child td { border-bottom: none; }
+.modern-table tr:hover { background-color: #f8fafc; }
+
+.actions-group { display: flex; gap: 8px; }
+.badge-tempo {
+  background: #f1f5f9;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.85rem;
+  color: #475569;
+  font-weight: 500;
+}

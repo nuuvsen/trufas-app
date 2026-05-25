@@ -3,16 +3,34 @@
 .menu-container {
   max-width: 1000px;
   margin: 0 auto;
+  padding: 15px; /* Evita colar nas laterais */
   color: #334155;
   font-family: system-ui, -apple-system, sans-serif;
-  padding-bottom: 80px; /* Espaço para o botão flutuante não tampar nada */
+  padding-bottom: 80px; 
+  overflow-x: hidden;
+}
+
+.header-title {
+  font-size: 1.8rem;
+  font-weight: 800;
+  margin-bottom: 1.5rem;
+  color: #0f172a;
+}
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  margin-bottom: 24px;
+  border: 1px solid #f1f5f9;
 }
 
 /* Dashboard Cards (Top) */
 .dashboard-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 20px;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 15px;
   margin-bottom: 30px;
 }
 
@@ -29,15 +47,129 @@
 .dash-card p { margin: 0; font-size: 2.5rem; font-weight: 800; color: #0f172a; }
 
 /* Status do Estoque */
-.status-ok { background-color: #d1fae5; color: #065f46; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
-.status-falta { background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 6px; font-weight: 600; font-size: 0.9rem; }
+.status-ok { background-color: #d1fae5; color: #065f46; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; }
+.status-falta { background-color: #fee2e2; color: #991b1b; padding: 4px 10px; border-radius: 6px; font-weight: 600; font-size: 0.85rem; }
+
+/* ======================================================== */
+/* LAYOUT DE CARTÕES COMPARTILHADO (MENU E MODALS)          */
+/* ======================================================== */
+
+.lista-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.item-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  border: 1px solid #e2e8f0;
+}
+
+.border-left-destaque {
+  border-left: 4px solid #f59e0b; /* Laranja para pendentes */
+}
+
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 12px;
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.card-subtitle {
+  font-size: 0.85rem;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+.valor-destaque {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: #059669;
+}
+
+.card-body {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+}
+
+.info-bloco {
+  display: flex;
+  flex-direction: column;
+}
+
+.label-min {
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: bold;
+  margin-bottom: 4px;
+}
+
+.lista-simples {
+  margin: 0;
+  padding-left: 15px;
+  font-size: 0.95rem;
+  color: #1e293b;
+}
+
+/* Modals */
+.modal-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background-color: rgba(15, 23, 42, 0.6);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(4px);
+  padding: 15px;
+}
+
+.modal-content {
+  background: white;
+  width: 100%;
+  max-width: 600px;
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  border-bottom: 2px solid #f1f5f9;
+  padding-bottom: 15px;
+}
+
+.modal-header h2 { margin: 0; color: #0f172a; font-size: 1.3rem; }
+.close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #94a3b8; }
 
 /* Botão Flutuante (FAB) */
 .fab-button {
   position: fixed;
   bottom: 30px;
   right: 30px;
-  background-color: #ec4899; /* Rosa bonito */
+  background-color: #ec4899; 
   color: white;
   border: none;
   border-radius: 50%;
@@ -52,11 +184,3 @@
   justify-content: center;
   z-index: 100;
 }
-
-.fab-button:hover {
-  transform: scale(1.05);
-  box-shadow: 0 15px 20px -3px rgba(236, 72, 153, 0.5);
-  background-color: #db2777;
-}
-
-.fab-button:active { transform: scale(0.95); }

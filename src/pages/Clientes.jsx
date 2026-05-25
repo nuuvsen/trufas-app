@@ -11,15 +11,16 @@ export default function Clientes() {
   const [telefone, setTelefone] = useState('');
   const [trufasCompradas, setTrufasCompradas] = useState('');
   const [editandoId, setEditandoId] = useState(null);
+  
+  // Estado para controlar o menu de ações no celular
+  const [menuAbertoId, setMenuAbertoId] = useState(null);
 
   useEffect(() => {
-    // Busca os clientes em tempo real do Firebase
     const unsubscribe = onSnapshot(collection(db, "clientes"), (snapshot) => {
       const listaClientes = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       }));
-      // Ordena por quem comprou mais trufas
       listaClientes.sort((a, b) => b.trufasCompradas - a.trufasCompradas);
       setClientes(listaClientes);
     });
@@ -37,13 +38,11 @@ export default function Clientes() {
       nome: nome,
       telefone: telefone || 'Não informado',
       trufasCompradas: parseInt(trufasCompradas) || 0,
-      // Se for novo, salva a data de hoje. Se estiver editando, mantém a data que já tinha.
       dataCadastro: editandoId ? undefined : new Date().toISOString() 
     };
 
     try {
       if (editandoId) {
-        // Para não apagar a data original ao editar
         delete dadosDoCliente.dataCadastro; 
         await updateDoc(doc(db, "clientes", editandoId), dadosDoCliente);
       } else {
@@ -60,22 +59,26 @@ export default function Clientes() {
     setTelefone(cliente.telefone === 'Não informado' ? '' : cliente.telefone);
     setTrufasCompradas(cliente.trufasCompradas);
     setEditandoId(cliente.id);
+    setMenuAbertoId(null);
   };
 
   const excluirCliente = async (id) => {
     if (window.confirm("Tem certeza que deseja apagar este cliente?")) {
       await deleteDoc(doc(db, "clientes", id));
     }
+    setMenuAbertoId(null);
   };
 
-  // Botão rápido para adicionar +1 trufa no histórico do cliente
   const adicionarTrufa = async (id, quantidadeAtual) => {
     await updateDoc(doc(db, "clientes", id), { 
       trufasCompradas: quantidadeAtual + 1 
     });
   };
 
-  // Calcula se faz dias, meses ou anos que é cliente
+  const toggleMenu = (id) => {
+    setMenuAbertoId(menuAbertoId === id ? null : id);
+  };
+
   const calcularTempo = (dataISO) => {
     if (!dataISO) return 'Novo';
     const dataCadastro = new Date(dataISO);
@@ -97,25 +100,25 @@ export default function Clientes() {
       {/* Formulário */}
       <div className="card">
         <form onSubmit={salvarCliente} className="form-grid">
-          <div className="input-group" style={{ flex: '2' }}>
+          <div className="input-group">
             <label>Nome do Cliente *</label>
             <input className="modern-input" type="text" value={nome} onChange={(e) => setNome(e.target.value)} placeholder="Ex: Maria Silva" />
           </div>
-          <div className="input-group" style={{ flex: '1.5' }}>
+          <div className="input-group">
             <label>WhatsApp / Telefone</label>
             <input className="modern-input" type="text" value={telefone} onChange={(e) => setTelefone(e.target.value)} placeholder="(53) 99999-9999" />
           </div>
-          <div className="input-group" style={{ flex: '1' }}>
+          <div className="input-group">
             <label>Trufas Compradas</label>
-            <input className="modern-input" type="number" value={trufasCompradas} onChange={(e) => setTrufasCompradas(e.target.value)} placeholder="0" title="Total que já comprou na vida" />
+            <input className="modern-input" type="number" value={trufasCompradas} onChange={(e) => setTrufasCompradas(e.target.value)} placeholder="0" />
           </div>
           
-          <div style={{ display: 'flex', gap: '10px' }}>
-            <button type="submit" className={`btn ${editandoId ? 'btn-primary' : 'btn-success'}`}>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '10px' }}>
+            <button type="submit" className={`btn ${editandoId ? 'btn-primary' : 'btn-success'}`} style={{flex: 1}}>
               {editandoId ? 'Atualizar Cliente' : 'Cadastrar Cliente'}
             </button>
             {editandoId && (
-              <button type="button" className="btn btn-secondary" onClick={() => { setEditandoId(null); setNome(''); setTelefone(''); setTrufasCompradas(''); }}>
+              <button type="button" className="btn btn-secondary" style={{flex: 1}} onClick={() => { setEditandoId(null); setNome(''); setTelefone(''); setTrufasCompradas(''); }}>
                 Cancelar
               </button>
             )}
@@ -123,61 +126,51 @@ export default function Clientes() {
         </form>
       </div>
 
-      {/* Tabela de Clientes */}
-      <div className="card">
-        <div className="table-container">
-          <table className="modern-table">
-            <thead>
-              <tr>
-                <th>Cliente & Contato</th>
-                <th>Tempo</th>
-                <th>Histórico (Trufas)</th>
-                <th>Ações</th>
-              </tr>
-            </thead>
-            <tbody>
-              {clientes.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
-                    Nenhum cliente cadastrado. Cadastre o primeiro para ver a mágica!
-                  </td>
-                </tr>
-              ) : (
-                clientes.map((cliente) => (
-                  <tr key={cliente.id}>
-                    <td>
-                      <strong>{cliente.nome}</strong>
-                      <div style={{ fontSize: '0.85rem', color: '#64748b', marginTop: '4px' }}>
-                        📞 {cliente.telefone}
-                      </div>
-                    </td>
-                    <td>
-                      <span className="badge-tempo">
-                        {calcularTempo(cliente.dataCadastro)}
-                      </span>
-                    </td>
-                    <td>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                        <span style={{ fontSize: '1.2rem', fontWeight: 'bold', color: '#8b5cf6' }}>
-                          {cliente.trufasCompradas}
-                        </span>
-                        <button className="btn-add-trufa" onClick={() => adicionarTrufa(cliente.id, cliente.trufasCompradas)} title="Adicionar +1 compra">
-                          +1 Trufa
-                        </button>
-                      </div>
-                    </td>
-                    <td>
-                      <div className="actions-group">
-                        <button className="btn btn-warning" onClick={() => prepararEdicao(cliente)}>Editar</button>
-                        <button className="btn btn-danger" onClick={() => excluirCliente(cliente.id)}>Excluir</button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+      {/* Lista de Clientes (Versão Mobile/Cards) */}
+      <div className="lista-cards">
+        {clientes.length === 0 ? (
+          <div className="card" style={{ textAlign: 'center', padding: '40px', color: '#94a3b8' }}>
+            Nenhum cliente cadastrado. Cadastre o primeiro para ver a mágica!
+          </div>
+        ) : (
+          clientes.map((cliente) => (
+            <div className="item-card" key={cliente.id}>
+              
+              <div className="card-header">
+                <div>
+                  <h3 className="card-title">{cliente.nome}</h3>
+                  <div className="card-subtitle">📞 {cliente.telefone}</div>
+                </div>
+                <button className="btn-opcoes" onClick={() => toggleMenu(cliente.id)}>⋮</button>
+              </div>
+
+              {/* Menu de Ações Escondido */}
+              {menuAbertoId === cliente.id && (
+                <div className="acoes-menu">
+                  <button className="btn btn-warning" onClick={() => prepararEdicao(cliente)}>✏️ Editar</button>
+                  <button className="btn btn-danger" onClick={() => excluirCliente(cliente.id)}>🗑️ Excluir</button>
+                </div>
               )}
-            </tbody>
-          </table>
-        </div>
+
+              <div className="card-body">
+                <div>
+                  <span className="badge-tempo">{calcularTempo(cliente.dataCadastro)}</span>
+                </div>
+                
+                <div className="cliente-historico">
+                  <div className="historico-info">
+                    <span className="label-min">Histórico</span>
+                    <span className="historico-numero">{cliente.trufasCompradas}</span>
+                  </div>
+                  <button className="btn-add-trufa" onClick={() => adicionarTrufa(cliente.id, cliente.trufasCompradas)} title="Adicionar +1 compra">
+                    +1 Trufa
+                  </button>
+                </div>
+              </div>
+
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

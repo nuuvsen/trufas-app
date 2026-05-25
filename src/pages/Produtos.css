@@ -1,11 +1,16 @@
 /* src/pages/Produtos.css */
 
+* {
+  box-sizing: border-box;
+}
 .produtos-container {
   max-width: 1000px;
   margin: 0 auto;
+  padding: 15px; /* ← Esse é o respiro que faltava nas laterais! */
   color: #334155;
   font-family: system-ui, -apple-system, sans-serif;
   position: relative;
+  overflow-x: hidden; /* Corta qualquer coisa teimosa que tente vazar */
 }
 
 .header-container {
@@ -43,8 +48,7 @@
 .input-group {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-width: 150px;
+  flex: 1 1 100%; 
 }
 
 .input-group label {
@@ -52,6 +56,13 @@
   font-weight: 600;
   margin-bottom: 8px;
   color: #475569;
+}
+
+@media (min-width: 600px) {
+  .input-group {
+    flex: 1;
+    min-width: 150px; 
+  }
 }
 
 .modern-input {

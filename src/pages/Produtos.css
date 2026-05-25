@@ -22,7 +22,7 @@
   margin: 0;
 }
 
-/* Cartões modernos com sombra suave */
+/* Cartões modernos com sombra suave (Formulário) */
 .card {
   background: white;
   border-radius: 12px;
@@ -115,17 +115,135 @@
 
 .btn-icon:hover { background: #f1f5f9; border-color: #94a3b8; }
 
-/* Tabela */
+
+/* ======================================================== */
+/* LAYOUT DE CARTÕES PARA OS PRODUTOS (OTIMIZADO P/ MOBILE) */
+/* ======================================================== */
+
+.lista-produtos {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  margin-top: 20px;
+}
+
+.produto-card {
+  background-color: #ffffff;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+/* Cabeçalho do Cartão e Botão de Opções */
+.produto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.produto-nome {
+  margin: 0;
+  font-size: 1.1rem;
+  color: #1e293b;
+  font-weight: 700;
+}
+
+.btn-opcoes {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  color: #64748b;
+  cursor: pointer;
+  padding: 0 10px;
+  line-height: 1;
+}
+
+/* Menu de Editar/Excluir escondido (Aparece ao clicar nos 3 pontinhos) */
+.produto-acoes-menu {
+  display: flex;
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.produto-acoes-menu .btn {
+  flex: 1; /* Faz os botões dividirem o espaço igualmente */
+  padding: 8px;
+  font-size: 0.9rem;
+}
+
+/* Corpo do Cartão (Valores e Estoque) */
+.produto-body {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 15px;
+}
+
+.valores-grid {
+  display: flex;
+  gap: 20px;
+}
+
+.label-min {
+  display: block;
+  font-size: 0.75rem;
+  color: #64748b;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.valor-custo {
+  color: #e11d48;
+  font-weight: 500;
+}
+
+.valor-venda {
+  color: #059669;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+/* Ajustes no Controle de Estoque para os Cartões */
+.estoque-section {
+  display: flex;
+  align-items: center;
+  background-color: #f8fafc;
+  padding: 6px 12px;
+  border-radius: 8px;
+}
+
+.estoque-control { display: flex; align-items: center; gap: 12px; }
+.estoque-number { font-weight: 700; font-size: 1.1rem; width: 30px; text-align: center; color: #0f172a; }
+
+/* Animação suave para o menu de ações */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ========================================= */
+/* TABELA (MANTIDA PARA O MODAL DE RELATÓRIO)*/
+/* ========================================= */
+
 .table-container { overflow-x: auto; }
+.table-responsive { overflow-x: auto; -webkit-overflow-scrolling: touch; } /* Previne que a tabela vaze no celular */
 .modern-table { width: 100%; border-collapse: collapse; text-align: left; }
 .modern-table th { padding: 16px; border-bottom: 2px solid #e2e8f0; color: #64748b; font-weight: 700; font-size: 0.85rem; text-transform: uppercase; }
 .modern-table td { padding: 16px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
 .modern-table tr:last-child td { border-bottom: none; }
 .modern-table tr:hover { background-color: #f8fafc; }
 
-.estoque-control { display: flex; align-items: center; gap: 12px; }
-.estoque-number { font-weight: 700; font-size: 1.1rem; width: 30px; text-align: center; color: #0f172a; }
-.actions-group { display: flex; gap: 8px; }
 
 /* ================= POP-UP (MODAL) ================= */
 .modal-overlay {
@@ -164,8 +282,14 @@
 .close-btn:hover { color: #ef4444; }
 
 /* Cards de Resumo no Pop-up */
-.finance-grid { display: flex; gap: 15px; margin-bottom: 25px; }
-.finance-box { flex: 1; padding: 20px; border-radius: 12px; color: white; text-align: center; }
+.finance-grid { 
+  display: flex; 
+  gap: 15px; 
+  margin-bottom: 25px; 
+  flex-wrap: wrap; /* Ajuda as caixas a não se espremerem muito em celulares pequenos */
+}
+
+.finance-box { flex: 1; padding: 20px; border-radius: 12px; color: white; text-align: center; min-width: 140px;}
 .finance-box h3 { margin: 0 0 10px 0; font-size: 1rem; font-weight: 500; opacity: 0.9; }
 .finance-box p { margin: 0; font-size: 1.8rem; font-weight: 800; }
 

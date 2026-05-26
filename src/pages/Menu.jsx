@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, onSnapshot, doc, updateDoc } from 'firebase/firestore'; 
+import { db as dbLocal } from '../db'; // <-- NOSSO BANCO OFFLINE AQUI (renomeado)
 import Pedido from '../components/Pedido';
 import './Menu.css';
 
@@ -64,6 +65,7 @@ export default function Menu() {
   };
 
   // Funções REAIS que processam as coisas no banco de dados
+ // Funções REAIS que processam as coisas no banco de dados
   const processarAcaoConfirmada = async () => {
     if (!confirmacaoAcao) return;
 
@@ -71,6 +73,22 @@ export default function Menu() {
 
     if (tipo === 'entregar') {
       try {
+        // ================= NOVA LÓGICA OFFLINE =================
+        if (!navigator.onLine) {
+          // Se não tem internet, salva a entrega no Dexie (celular)
+          await dbLocal.vendas.add({
+            acao: 'entregar',
+            pedidoId: pedido.id,
+            itens: pedido.itens, // Precisamos dos itens para abater o estoque depois
+            statusSincronizacao: 'pendente'
+          });
+          mostrarNotificacao("📴 Sem internet! A entrega foi salva no celular.");
+          setConfirmacaoAcao(null);
+          return; // Para o código aqui para não tentar ir pro Firebase e dar erro!
+        }
+        // =======================================================
+
+        // SE TIVER INTERNET: O seu código original do Firebase continua aqui!
         for (const item of pedido.itens) {
           const produtoFisico = produtos.find(p => p.id === item.produtoId);
           if (produtoFisico) {
@@ -89,8 +107,17 @@ export default function Menu() {
       }
     } 
     
+    // (A parte do cancelar continua igual)
     else if (tipo === 'cancelar') {
       try {
+        if (!navigator.onLine) {
+           // Opcional: Salvar cancelamentos offline também
+           await dbLocal.vendas.add({ acao: 'cancelar', pedidoId: pedido.id, statusSincronizacao: 'pendente' });
+           mostrarNotificacao("📴 Cancelamento salvo offline.");
+           setConfirmacaoAcao(null);
+           return;
+        }
+
         await updateDoc(doc(db, "pedidos", pedido.id), {
           status: 'cancelado',
           dataCancelamento: new Date().toISOString()
@@ -101,7 +128,7 @@ export default function Menu() {
       }
     }
 
-    setConfirmacaoAcao(null); // Fecha a janelinha após concluir
+    setConfirmacaoAcao(null);
   };
   
   const totalEncomendas = pedidosPendentes.reduce((acc, pedido) => acc + pedido.totalTrufas, 0);

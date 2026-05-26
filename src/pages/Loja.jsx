@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, onSnapshot } from 'firebase/firestore';
+import ComentarioTelegram from '../components/ComentarioTelegram'; // <-- Importamos o botão aqui!
 import './Loja.css';
 
 export default function Loja() {
@@ -13,7 +14,8 @@ export default function Loja() {
   const [produtosCatalogo, setProdutosCatalogo] = useState([]);
   const [carrinho, setCarrinho] = useState({});
   
-  const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [] });
+  // Agora a config da loja também espera os dados do Telegram!
+  const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [], telegramToken: '', telegramChatId: '' });
 
   useEffect(() => {
     const q = query(collection(db, "produtos"), where("ativoNoCatalogo", "==", true));
@@ -129,6 +131,7 @@ export default function Loja() {
   };
 
   const totais = calcularTotal();
+  const temCarrinhoAtivo = etapa === 3 && totais.qtd > 0; // Ajuda a saber se a barra inferior do carrinho está aparecendo
 
   const linkWhatsapp = configLoja.whatsapp ? `https://wa.me/55${configLoja.whatsapp.replace(/\D/g, '')}` : '#';
   const arrobaInsta = configLoja.instagram ? configLoja.instagram.replace('@', '') : '';
@@ -163,11 +166,9 @@ export default function Loja() {
             <h3 style={{ fontSize: '1rem', color: '#64748b', marginBottom: '10px', paddingLeft: '5px' }}>Nossas Delícias 📸</h3>
             
             <div className="vitrine-track">
-              {/* Mostramos as fotos a primeira vez */}
               {configLoja.fotos.map((foto, idx) => (
                 <img key={idx} src={foto} alt="Trufa" />
               ))}
-              {/* DUPLICAMOS as fotos para o loop ser infinito e sem pulos */}
               {configLoja.fotos.map((foto, idx) => (
                 <img key={`clone-${idx}`} src={foto} alt="Trufa Clone" />
               ))}
@@ -239,7 +240,7 @@ export default function Loja() {
       </div>
 
       {/* BARRA INFERIOR DE FINALIZAR */}
-      {etapa === 3 && totais.qtd > 0 && (
+      {temCarrinhoAtivo && (
         <div className="carrinho-bar">
           <div>
             <div style={{ color: '#64748b', fontSize: '0.9rem' }}>{totais.qtd} trufas</div>
@@ -252,6 +253,15 @@ export default function Loja() {
           </button>
         </div>
       )}
+
+      {/* COMPONENTE DO TELEGRAM */}
+      <ComentarioTelegram 
+        telegramToken={configLoja.telegramToken} 
+        telegramChatId={configLoja.telegramChatId} 
+        nomeCliente={nome}
+        subido={temCarrinhoAtivo} // Passamos isso para o botão não ficar atrás da barra do carrinho!
+      />
+
     </div>
   );
 }

@@ -7,6 +7,10 @@ export default function Gerencia() {
   const [whatsapp, setWhatsapp] = useState('');
   const [instagram, setInstagram] = useState('');
   
+  // ================= NOVOS CAMPOS: TELEGRAM =================
+  const [telegramToken, setTelegramToken] = useState('');
+  const [telegramChatId, setTelegramChatId] = useState('');
+  
   // Lista de fotos e Upload
   const [fotos, setFotos] = useState([]);
   const [arquivoSelecionado, setArquivoSelecionado] = useState(null);
@@ -21,6 +25,10 @@ export default function Gerencia() {
         setWhatsapp(dados.whatsapp || '');
         setInstagram(dados.instagram || '');
         setFotos(dados.fotos || []);
+        
+        // Carrega os dados do Telegram salvos
+        setTelegramToken(dados.telegramToken || '');
+        setTelegramChatId(dados.telegramChatId || '');
       }
     };
     carregarConfiguracoes();
@@ -29,12 +37,15 @@ export default function Gerencia() {
   const salvarConfiguracoes = async (e) => {
     if (e) e.preventDefault();
     try {
+      // Usamos { merge: true } para atualizar apenas esses campos sem apagar o resto
       await setDoc(doc(db, "configuracoes", "loja"), {
         whatsapp,
         instagram,
-        fotos
-      });
-      alert("Configurações da Loja atualizadas com sucesso! 🚀");
+        telegramToken,
+        telegramChatId
+      }, { merge: true });
+      
+      alert("Configurações atualizadas com sucesso! 🚀");
     } catch (erro) {
       alert("Erro ao salvar configurações.");
     }
@@ -47,16 +58,11 @@ export default function Gerencia() {
     setFazendoUpload(true);
     
     try {
-      // 1. Prepara a imagem para enviar
       const formData = new FormData();
       formData.append("image", arquivoSelecionado);
       
-      // 2. Chave de API pública e gratuita do ImgBB
-      // OBS: Você pode criar uma conta gratuita no api.imgbb.com para ter a sua própria chave, 
-      // mas deixei uma genérica funcional de exemplo aqui.
       const API_KEY = "f172041aaa9358b02a0ed5e94e90960b"; 
 
-      // 3. Envia para o servidor deles
       const resposta = await fetch(`https://api.imgbb.com/1/upload?key=${API_KEY}`, {
         method: "POST",
         body: formData
@@ -65,20 +71,16 @@ export default function Gerencia() {
       const dados = await resposta.json();
 
       if (dados.success) {
-        // 4. Pega o Link (URL) público gerado!
         const linkPublico = dados.data.url;
         
-        // 5. Adiciona o link na nossa lista e salva no Firebase (que guarda só o texto)
         const novaListaDeFotos = [...fotos, linkPublico];
         setFotos(novaListaDeFotos);
         
+        // Salva SOMENTE as fotos (o { merge: true } protege o whatsapp e telegram)
         await setDoc(doc(db, "configuracoes", "loja"), {
-          whatsapp,
-          instagram,
           fotos: novaListaDeFotos
-        });
+        }, { merge: true });
 
-        // Limpa a seleção
         setArquivoSelecionado(null);
         document.getElementById('input-foto').value = ''; 
         alert("Foto enviada com sucesso! 📸");
@@ -99,7 +101,11 @@ export default function Gerencia() {
     if (confirmacao) {
       const novaLista = fotos.filter((_, index) => index !== indexParaRemover);
       setFotos(novaLista);
-      setDoc(doc(db, "configuracoes", "loja"), { whatsapp, instagram, fotos: novaLista });
+      
+      // Atualiza apenas a lista de fotos no banco
+      setDoc(doc(db, "configuracoes", "loja"), { 
+        fotos: novaLista 
+      }, { merge: true });
     }
   };
 
@@ -107,6 +113,7 @@ export default function Gerencia() {
     <div className="produtos-container">
       <h1 className="header-title">⚙️ Gerenciar Loja do Cliente</h1>
 
+      {/* ================= CARTÃO: REDES SOCIAIS ================= */}
       <div className="card">
         <h2 style={{ marginBottom: '20px', color: '#0f172a' }}>Redes Sociais & Contato</h2>
         <form onSubmit={salvarConfiguracoes} className="form-grid">
@@ -138,6 +145,43 @@ export default function Gerencia() {
         </form>
       </div>
 
+      {/* ================= CARTÃO: AUTOMAÇÃO TELEGRAM ================= */}
+      <div className="card" style={{ borderLeft: '4px solid #3b82f6' }}>
+        <h2 style={{ marginBottom: '10px', color: '#0f172a' }}>🤖 Automação do Telegram</h2>
+        <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.9rem' }}>
+          Configure seu Bot do Telegram para receber alertas de comentários dos clientes em tempo real.
+        </p>
+        
+        <form onSubmit={salvarConfiguracoes} className="form-grid">
+          <div className="input-group" style={{ flex: '1' }}>
+            <label>Token do Bot (BotFather)</label>
+            <input 
+              className="modern-input" 
+              type="text" 
+              value={telegramToken} 
+              onChange={(e) => setTelegramToken(e.target.value)} 
+              placeholder="Ex: 123456:ABC-DEF1234ghIkl-zyx..." 
+            />
+          </div>
+          <div className="input-group" style={{ flex: '1' }}>
+            <label>Chat ID</label>
+            <input 
+              className="modern-input" 
+              type="text" 
+              value={telegramChatId} 
+              onChange={(e) => setTelegramChatId(e.target.value)} 
+              placeholder="Ex: 123456789" 
+            />
+          </div>
+          <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '10px' }}>
+            <button type="submit" className="btn btn-primary" style={{ width: '100%', backgroundColor: '#3b82f6' }}>
+              💾 Salvar Configurações do Bot
+            </button>
+          </div>
+        </form>
+      </div>
+
+      {/* ================= CARTÃO: VITRINE DE FOTOS ================= */}
       <div className="card">
         <h2 style={{ marginBottom: '20px', color: '#0f172a' }}>🖼️ Vitrine de Fotos</h2>
         <p style={{ color: '#64748b', marginBottom: '20px' }}>
@@ -186,6 +230,7 @@ export default function Gerencia() {
           <p style={{ textAlign: 'center', color: '#94a3b8', padding: '20px' }}>Sua vitrine está vazia.</p>
         )}
       </div>
+
     </div>
   );
 }

@@ -52,6 +52,22 @@ export default function Menu() {
       }
     }
   };
+
+  // Nova função para CANCELAR o pedido
+  const cancelarPedido = async (pedido) => {
+    if (window.confirm(`Tem certeza que deseja CANCELAR o pedido de ${pedido.clienteNome}?`)) {
+      try {
+        // Muda o status para 'cancelado'. Ele some dos pendentes e não vai pro histórico de entregas.
+        await updateDoc(doc(db, "pedidos", pedido.id), {
+          status: 'cancelado',
+          dataCancelamento: new Date().toISOString()
+        });
+        alert("Pedido cancelado com sucesso.");
+      } catch (erro) {
+        alert("Erro ao cancelar o pedido.");
+      }
+    }
+  };
   
   const totalEncomendas = pedidosPendentes.reduce((acc, pedido) => acc + pedido.totalTrufas, 0);
 
@@ -158,9 +174,17 @@ export default function Menu() {
                           <li key={idx}>{item.nome} x <strong>{item.quantidade}</strong></li>
                         ))}
                       </ul>
-                      <button className="btn btn-success" style={{ width: '100%', marginTop: '10px' }} onClick={() => finalizarEntregaPedido(pedido)}>
-                        ✓ Entregar Pedido
-                      </button>
+                      
+                      {/* Botoes de Ação: Cancelar e Entregar lado a lado */}
+                      <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '15px' }}>
+                        <button className="btn btn-danger" style={{ flex: 1, padding: '10px 5px' }} onClick={() => cancelarPedido(pedido)}>
+                          ✖ Cancelar
+                        </button>
+                        <button className="btn btn-success" style={{ flex: 1.5, padding: '10px 5px' }} onClick={() => finalizarEntregaPedido(pedido)}>
+                          ✓ Entregar
+                        </button>
+                      </div>
+
                     </div>
                   </div>
                 ))

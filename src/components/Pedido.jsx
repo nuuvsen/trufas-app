@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
+import { db as dbLocal } from '../db'; // <--- IMPORTAMOS NOSSO BANCO OFFLINE (Dexie)
 import { collection, addDoc, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 
 export default function Pedido({ isOpen, onClose }) {
@@ -53,12 +54,39 @@ export default function Pedido({ isOpen, onClose }) {
     if (!clienteSelecionado) return alert("Selecione ou crie um cliente!");
     if (carrinho.length === 0) return alert("Adicione trufas ao pedido!");
 
-    let clienteId = clienteSelecionado;
-    let clienteNome = '';
     const totalTrufasNoPedido = carrinho.reduce((acc, item) => acc + item.quantidade, 0);
     const valorTotalPedido = carrinho.reduce((acc, item) => acc + (item.quantidade * item.precoVenda), 0);
 
     try {
+      // ================= NOVA LÓGICA OFFLINE =================
+      if (!navigator.onLine) {
+        // Se está sem internet, salva um "pacotão" com tudo no celular
+        await dbLocal.vendas.add({
+          acao: 'novo_pedido',
+          clienteSelecionado,
+          novoClienteNome,
+          novoClienteTelefone,
+          carrinho,
+          totalTrufasNoPedido,
+          valorTotalPedido,
+          statusSincronizacao: 'pendente',
+          dataPedido: new Date().toISOString()
+        });
+
+        alert("📴 Sem internet! Encomenda salva no celular e será enviada quando conectar.");
+        
+        // Limpa tudo e fecha
+        setClienteSelecionado(''); setNovoClienteNome(''); setNovoClienteTelefone('');
+        setCarrinho([]); onClose();
+        
+        return; // Pára aqui para não dar erro no Firebase!
+      }
+      // =======================================================
+
+      // ====== DAQUI PRA BAIXO RODA SÓ SE TIVER INTERNET ======
+      let clienteId = clienteSelecionado;
+      let clienteNome = '';
+
       // 1. Lida com o Cliente (Cria novo ou atualiza existente)
       if (clienteSelecionado === 'novo') {
         if (!novoClienteNome) return alert("Digite o nome do novo cliente!");
@@ -89,12 +117,14 @@ export default function Pedido({ isOpen, onClose }) {
         dataPedido: new Date().toISOString()
       });
 
-      alert("Pedido salvo com sucesso!");
+      alert("Pedido salvo com sucesso! 🎉");
+      
       // Limpa tudo e fecha
       setClienteSelecionado(''); setNovoClienteNome(''); setNovoClienteTelefone('');
       setCarrinho([]); onClose();
 
     } catch (erro) {
+      console.error(erro);
       alert("Erro ao salvar pedido.");
     }
   };

@@ -13,6 +13,10 @@ export default function Menu() {
   const [isVerPedidosOpen, setIsVerPedidosOpen] = useState(false); 
   const [isHistoricoOpen, setIsHistoricoOpen] = useState(false); 
 
+  // ================= ESTADOS PARA SUBSTITUIR OS ALERTS FEIOS =================
+  const [notificacao, setNotificacao] = useState(null); // Para mostrar "Entregue com sucesso!" no topo
+  const [confirmacaoAcao, setConfirmacaoAcao] = useState(null); // Guarda os dados para o Modal de Confirmação
+
   useEffect(() => {
     const unsubProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
       setProdutos(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
@@ -30,8 +34,42 @@ export default function Menu() {
     return () => { unsubProdutos(); unsubPedidos(); };
   }, []);
 
-  const finalizarEntregaPedido = async (pedido) => {
-    if (window.confirm(`Deseja entregar o pedido de ${pedido.clienteNome}? Isso vai dar baixa automática no estoque.`)) {
+  // Função para mostrar um aviso bonito que some sozinho
+  const mostrarNotificacao = (mensagem, tipo = 'sucesso') => {
+    setNotificacao({ mensagem, tipo });
+    setTimeout(() => setNotificacao(null), 3000); // Some após 3 segundos
+  };
+
+  // Funções que apenas ABREM a janela bonita de confirmação
+  const pedirConfirmacaoEntrega = (pedido) => {
+    setConfirmacaoAcao({
+      tipo: 'entregar',
+      pedido: pedido,
+      titulo: 'Confirmar Entrega',
+      mensagem: `Deseja entregar o pedido de ${pedido.clienteNome}? Isso vai dar baixa automática no estoque.`,
+      corBotao: '#10b981', // Verde
+      textoBotao: '✓ Sim, Entregar'
+    });
+  };
+
+  const pedirConfirmacaoCancelamento = (pedido) => {
+    setConfirmacaoAcao({
+      tipo: 'cancelar',
+      pedido: pedido,
+      titulo: 'Cancelar Pedido',
+      mensagem: `Tem certeza que deseja cancelar o pedido de ${pedido.clienteNome}? Esta ação não pode ser desfeita.`,
+      corBotao: '#ef4444', // Vermelho
+      textoBotao: '✖ Sim, Cancelar'
+    });
+  };
+
+  // Funções REAIS que processam as coisas no banco de dados
+  const processarAcaoConfirmada = async () => {
+    if (!confirmacaoAcao) return;
+
+    const { tipo, pedido } = confirmacaoAcao;
+
+    if (tipo === 'entregar') {
       try {
         for (const item of pedido.itens) {
           const produtoFisico = produtos.find(p => p.id === item.produtoId);
@@ -41,32 +79,29 @@ export default function Menu() {
             await updateDoc(doc(db, "produtos", item.produtoId), { estoque: novoEstoque });
           }
         }
-
         await updateDoc(doc(db, "pedidos", pedido.id), {
           status: 'entregue',
           dataEntrega: new Date().toISOString()
         });
-        alert("Pedido entregue e estoque atualizado com sucesso! 🎉");
+        mostrarNotificacao("Pedido entregue e estoque atualizado! 🎉");
       } catch (erro) {
-        alert("Erro ao processar a entrega.");
+        mostrarNotificacao("Erro ao processar a entrega.", "erro");
       }
-    }
-  };
-
-  // Nova função para CANCELAR o pedido
-  const cancelarPedido = async (pedido) => {
-    if (window.confirm(`Tem certeza que deseja CANCELAR o pedido de ${pedido.clienteNome}?`)) {
+    } 
+    
+    else if (tipo === 'cancelar') {
       try {
-        // Muda o status para 'cancelado'. Ele some dos pendentes e não vai pro histórico de entregas.
         await updateDoc(doc(db, "pedidos", pedido.id), {
           status: 'cancelado',
           dataCancelamento: new Date().toISOString()
         });
-        alert("Pedido cancelado com sucesso.");
+        mostrarNotificacao("Pedido cancelado com sucesso.");
       } catch (erro) {
-        alert("Erro ao cancelar o pedido.");
+        mostrarNotificacao("Erro ao cancelar o pedido.", "erro");
       }
     }
+
+    setConfirmacaoAcao(null); // Fecha a janelinha após concluir
   };
   
   const totalEncomendas = pedidosPendentes.reduce((acc, pedido) => acc + pedido.totalTrufas, 0);
@@ -87,6 +122,20 @@ export default function Menu() {
 
   return (
     <div className="menu-container">
+      
+      {/* ================= AVISO FLUTUANTE BONITO NO TOPO ================= */}
+      {notificacao && (
+        <div style={{
+          position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
+          backgroundColor: notificacao.tipo === 'erro' ? '#ef4444' : '#10b981',
+          color: 'white', padding: '12px 24px', borderRadius: '30px',
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)', zIndex: 9999,
+          fontWeight: 'bold', fontSize: '0.95rem', animation: 'fadeIn 0.3s ease-out'
+        }}>
+          {notificacao.mensagem}
+        </div>
+      )}
+
       <h1 className="header-title">📊 Resumo do Dia</h1>
 
       {/* DASHBOARD */}
@@ -175,12 +224,12 @@ export default function Menu() {
                         ))}
                       </ul>
                       
-                      {/* Botoes de Ação: Cancelar e Entregar lado a lado */}
+                      {/* Trocamos os botões para chamar nossa janelinha personalizada! */}
                       <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '15px' }}>
-                        <button className="btn btn-danger" style={{ flex: 1, padding: '10px 5px' }} onClick={() => cancelarPedido(pedido)}>
+                        <button className="btn btn-danger" style={{ flex: 1, padding: '10px 5px' }} onClick={() => pedirConfirmacaoCancelamento(pedido)}>
                           ✖ Cancelar
                         </button>
-                        <button className="btn btn-success" style={{ flex: 1.5, padding: '10px 5px' }} onClick={() => finalizarEntregaPedido(pedido)}>
+                        <button className="btn btn-success" style={{ flex: 1.5, padding: '10px 5px' }} onClick={() => pedirConfirmacaoEntrega(pedido)}>
                           ✓ Entregar
                         </button>
                       </div>
@@ -226,6 +275,32 @@ export default function Menu() {
                   </div>
                 ))
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================= MODAL BONITO DE CONFIRMAÇÃO ================= */}
+      {confirmacaoAcao && (
+        <div className="modal-overlay" style={{ zIndex: 2000 }} onClick={() => setConfirmacaoAcao(null)}>
+          <div className="modal-content" style={{ maxWidth: '400px', textAlign: 'center', padding: '30px 20px' }} onClick={(e) => e.stopPropagation()}>
+            <h2 style={{ margin: '0 0 15px 0', color: '#0f172a' }}>{confirmacaoAcao.titulo}</h2>
+            <p style={{ color: '#475569', marginBottom: '25px', lineHeight: '1.5' }}>
+              {confirmacaoAcao.mensagem}
+            </p>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button onClick={() => setConfirmacaoAcao(null)} style={{
+                flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                backgroundColor: 'white', color: '#475569', fontWeight: 'bold', cursor: 'pointer'
+              }}>
+                Voltar
+              </button>
+              <button onClick={processarAcaoConfirmada} style={{
+                flex: 1.5, padding: '12px', borderRadius: '8px', border: 'none',
+                backgroundColor: confirmacaoAcao.corBotao, color: 'white', fontWeight: 'bold', cursor: 'pointer'
+              }}>
+                {confirmacaoAcao.textoBotao}
+              </button>
             </div>
           </div>
         </div>

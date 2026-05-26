@@ -15,7 +15,15 @@ export default function Produtos() {
 
   // Estados de Interface
   const [isModalOpen, setIsModalOpen] = useState(false);
-  const [menuAbertoId, setMenuAbertoId] = useState(null); // Controla qual menu de ações está aberto
+  const [menuAbertoId, setMenuAbertoId] = useState(null); 
+
+  // ================= ESTADOS DO ASSISTENTE CONTÁBIL (BOT) =================
+  const [isContabilOpen, setIsContabilOpen] = useState(false);
+  const [etapaContabil, setEtapaContabil] = useState(1); // 1 = Gastos, 2 = Rendimento, 3 = Resultado
+  const [ingredientes, setIngredientes] = useState([]);
+  const [ingNome, setIngNome] = useState('');
+  const [ingValor, setIngValor] = useState('');
+  const [rendimento, setRendimento] = useState('');
 
   useEffect(() => {
     const unsubscribe = onSnapshot(collection(db, "produtos"), (snapshot) => {
@@ -60,14 +68,14 @@ export default function Produtos() {
     setPrecoVenda(produto.precoVenda || ''); 
     setEstoque(produto.estoque); 
     setEditandoId(produto.id);
-    setMenuAbertoId(null); // Fecha o menu ao editar
+    setMenuAbertoId(null);
   };
 
   const excluirProduto = async (id) => {
     if (window.confirm("Tem certeza que deseja excluir esta trufa?")) {
       await deleteDoc(doc(db, "produtos", id));
     }
-    setMenuAbertoId(null); // Fecha o menu ao excluir
+    setMenuAbertoId(null); 
   };
 
   const alterarEstoqueRapido = async (id, estoqueAtual, alteracao) => {
@@ -81,20 +89,53 @@ export default function Produtos() {
     setMenuAbertoId(menuAbertoId === id ? null : id);
   };
 
-  // ================= CÁLCULOS FINANCEIROS =================
+  // ================= CÁLCULOS DO RELATÓRIO =================
   const totalGasto = produtos.reduce((acc, p) => acc + ((p.custo || 0) * p.estoque), 0);
   const totalFaturado = produtos.reduce((acc, p) => acc + ((p.precoVenda || 0) * p.estoque), 0);
   const lucroTotal = totalFaturado - totalGasto;
 
+  // ================= FUNÇÕES DO ASSISTENTE CONTÁBIL =================
+  const adicionarIngrediente = (e) => {
+    e.preventDefault();
+    if (!ingNome || !ingValor) return;
+    setIngredientes([...ingredientes, { nome: ingNome, valor: parseFloat(ingValor) }]);
+    setIngNome('');
+    setIngValor('');
+  };
+
+  const removerIngrediente = (index) => {
+    const novaLista = ingredientes.filter((_, i) => i !== index);
+    setIngredientes(novaLista);
+  };
+
+  const totalIngredientes = ingredientes.reduce((acc, curr) => acc + curr.valor, 0);
+  const custoUnitario = totalIngredientes / (parseInt(rendimento) || 1);
+  
+  // Simulação de Mercado: O ideal na confeitaria é multiplicar o custo por 3 (Custo + Mão de Obra + Lucro)
+  const precoSugerido = custoUnitario * 3; 
+
+  const transferirParaFormulario = () => {
+    setCusto(custoUnitario.toFixed(2));
+    setPrecoVenda(precoSugerido.toFixed(2));
+    setIsContabilOpen(false);
+  };
+
   return (
     <div className="produtos-container">
       
-      {/* Cabeçalho */}
-      <div className="header-container">
-        <button className="btn btn-relatorio" onClick={() => setIsModalOpen(true)}>
-          📊 Relatório
-        </button>
-        <h1 className="header-title">📦 Gestão e Estoque</h1>
+      {/* Cabeçalho Ajustado com o novo botão Contábil */}
+      <div className="header-container" style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h1 className="header-title" style={{ margin: 0 }}>📦 Gestão e Estoque</h1>
+        
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button className="btn btn-relatorio" onClick={() => setIsModalOpen(true)}>
+            📊 Relatório
+          </button>
+          
+          <button className="btn btn-primary" style={{ backgroundColor: '#8b5cf6' }} onClick={() => { setIsContabilOpen(true); setEtapaContabil(1); setIngredientes([]); setRendimento(''); }}>
+            🤖 Assistente Contábil
+          </button>
+        </div>
       </div>
 
       {/* Cartão do Formulário */}
@@ -180,16 +221,13 @@ export default function Produtos() {
       </div>
 
       {/* ================= MODAL DE RELATÓRIO ================= */}
-      {/* Mative o código do modal exatamente como o seu! */}
       {isModalOpen && (
         <div className="modal-overlay" onClick={() => setIsModalOpen(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            
             <div className="modal-header">
               <h2>📊 Relatório do Estoque</h2>
               <button className="close-btn" onClick={() => setIsModalOpen(false)}>✖</button>
             </div>
-
             <div className="finance-grid">
               <div className="finance-box box-gasto">
                 <h3>Total Gasto</h3>
@@ -204,7 +242,6 @@ export default function Produtos() {
                 <p>R$ {lucroTotal.toFixed(2).replace('.', ',')}</p>
               </div>
             </div>
-
             <h3 style={{ color: '#0f172a', marginBottom: '15px' }}>Lucro por Sabor</h3>
             <div className="table-responsive">
               <table className="modern-table">
@@ -237,6 +274,127 @@ export default function Produtos() {
           </div>
         </div>
       )}
+
+      {/* ================= MODAL DO ASSISTENTE CONTÁBIL ================= */}
+      {isContabilOpen && (
+        <div className="modal-overlay" onClick={() => setIsContabilOpen(false)}>
+          <div className="modal-content" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>🤖 Assistente Contábil</h2>
+              <button className="close-btn" onClick={() => setIsContabilOpen(false)}>✖</button>
+            </div>
+
+            {/* ETAPA 1: INSERIR GASTOS */}
+            {etapaContabil === 1 && (
+              <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '15px' }}>
+                  Me conte tudo o que você usou na receita e o valor pago:
+                </p>
+
+                <form onSubmit={adicionarIngrediente} style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+                  <input className="modern-input" type="text" placeholder="Item (Ex: Chocolate)" value={ingNome} onChange={(e) => setIngNome(e.target.value)} style={{ flex: 2 }} required />
+                  <input className="modern-input" type="number" step="0.01" placeholder="R$" value={ingValor} onChange={(e) => setIngValor(e.target.value)} style={{ flex: 1 }} required />
+                  <button type="submit" className="btn btn-primary" style={{ padding: '0 15px' }}>+</button>
+                </form>
+
+                <div style={{ maxHeight: '200px', overflowY: 'auto', marginBottom: '15px' }}>
+                  {ingredientes.length === 0 ? (
+                    <p style={{ textAlign: 'center', color: '#94a3b8', fontSize: '0.9rem' }}>Nenhum ingrediente adicionado ainda.</p>
+                  ) : (
+                    ingredientes.map((ing, idx) => (
+                      <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', padding: '10px', backgroundColor: '#f8fafc', borderRadius: '8px', marginBottom: '8px', alignItems: 'center' }}>
+                        <span style={{ fontWeight: '600', color: '#334155' }}>{ing.nome}</span>
+                        <div style={{ display: 'flex', gap: '15px', alignItems: 'center' }}>
+                          <span style={{ color: '#059669' }}>R$ {ing.valor.toFixed(2).replace('.', ',')}</span>
+                          <button onClick={() => removerIngrediente(idx)} style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', fontWeight: 'bold' }}>X</button>
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+
+                <div style={{ padding: '15px', backgroundColor: '#f1f5f9', borderRadius: '8px', display: 'flex', justifyContent: 'space-between', fontWeight: 'bold', fontSize: '1.1rem', marginBottom: '20px' }}>
+                  <span>Total Gasto na Receita:</span>
+                  <span style={{ color: '#8b5cf6' }}>R$ {totalIngredientes.toFixed(2).replace('.', ',')}</span>
+                </div>
+
+                <button 
+                  className="btn btn-success" 
+                  style={{ width: '100%', padding: '15px', fontSize: '1.1rem' }} 
+                  onClick={() => setEtapaContabil(2)}
+                  disabled={ingredientes.length === 0}
+                >
+                  Continuar ➡️
+                </button>
+              </div>
+            )}
+
+            {/* ETAPA 2: RENDIMENTO */}
+            {etapaContabil === 2 && (
+              <div style={{ animation: 'fadeIn 0.3s ease-in-out', textAlign: 'center' }}>
+                <div style={{ fontSize: '3rem', marginBottom: '10px' }}>🤔</div>
+                <h3 style={{ color: '#0f172a', marginBottom: '15px' }}>Quantas trufas renderam?</h3>
+                <p style={{ color: '#64748b', fontSize: '0.9rem', marginBottom: '20px' }}>
+                  Você gastou <strong>R$ {totalIngredientes.toFixed(2).replace('.', ',')}</strong>.<br/>
+                  Me diga a quantidade total de trufas que você conseguiu produzir com esses ingredientes:
+                </p>
+
+                <input 
+                  className="modern-input" 
+                  type="number" 
+                  placeholder="Ex: 30" 
+                  value={rendimento} 
+                  onChange={(e) => setRendimento(e.target.value)} 
+                  style={{ width: '150px', textAlign: 'center', fontSize: '1.5rem', marginBottom: '20px' }} 
+                />
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <button className="btn btn-secondary" style={{ flex: 1 }} onClick={() => setEtapaContabil(1)}>Voltar</button>
+                  <button className="btn btn-success" style={{ flex: 2 }} onClick={() => setEtapaContabil(3)} disabled={!rendimento || parseInt(rendimento) <= 0}>
+                    Calcular Preços 🚀
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* ETAPA 3: RESULTADOS E MERCADO */}
+            {etapaContabil === 3 && (
+              <div style={{ animation: 'fadeIn 0.3s ease-in-out' }}>
+                <h3 style={{ color: '#0f172a', marginBottom: '20px', textAlign: 'center' }}>Resumo Inteligente 💡</h3>
+                
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Custo Total:</span>
+                  <strong>R$ {totalIngredientes.toFixed(2).replace('.', ',')}</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', borderBottom: '1px solid #f1f5f9' }}>
+                  <span style={{ color: '#64748b' }}>Rendimento:</span>
+                  <strong>{rendimento} trufas</strong>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px', backgroundColor: '#fef2f2', borderRadius: '8px', marginTop: '10px' }}>
+                  <span style={{ color: '#991b1b', fontWeight: 'bold' }}>Custo por Trufa:</span>
+                  <strong style={{ color: '#ef4444' }}>R$ {custoUnitario.toFixed(2).replace('.', ',')}</strong>
+                </div>
+
+                <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#dcfce7', borderRadius: '8px', color: '#166534' }}>
+                  <h4 style={{ margin: '0 0 10px 0' }}>Análise de Mercado 📈</h4>
+                  <p style={{ margin: 0, fontSize: '0.9rem', lineHeight: '1.5' }}>
+                    Para cobrir os custos (ingredientes + embalagem), pagar sua mão de obra e ainda ter lucro para investir no negócio, o preço ideal de venda desta trufa é de aproximadamente <strong>R$ {precoSugerido.toFixed(2).replace('.', ',')}</strong>.
+                  </p>
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px', marginTop: '20px' }}>
+                  <button className="btn btn-secondary" onClick={() => setIsContabilOpen(false)}>Fechar</button>
+                  <button className="btn btn-primary" style={{ flex: 1, backgroundColor: '#8b5cf6' }} onClick={transferirParaFormulario}>
+                    ✨ Usar esses valores no Cadastro
+                  </button>
+                </div>
+              </div>
+            )}
+
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

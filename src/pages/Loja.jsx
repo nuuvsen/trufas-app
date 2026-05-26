@@ -1,20 +1,21 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, onSnapshot } from 'firebase/firestore';
-import ComentarioTelegram from '../components/ComentarioTelegram'; // <-- Importamos o botão aqui!
+import ComentarioTelegram from '../components/ComentarioTelegram';
 import './Loja.css';
 
 export default function Loja() {
-  const [etapa, setEtapa] = useState(1);
+  // Campos do Cliente (agora preenchidos só no final da compra)
   const [telefone, setTelefone] = useState('');
   const [nome, setNome] = useState('');
-  const [clienteId, setClienteId] = useState(null);
-  const [trufasCompradasAteHoje, setTrufasCompradasAteHoje] = useState(0);
 
   const [produtosCatalogo, setProdutosCatalogo] = useState([]);
   const [carrinho, setCarrinho] = useState({});
   
-  // Agora a config da loja também espera os dados do Telegram!
+  // Controle da nova janelinha de finalizar compra
+  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
+  const [enviandoPedido, setEnviandoPedido] = useState(false);
+  
   const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [], telegramToken: '', telegramChatId: '' });
 
   useEffect(() => {
@@ -31,30 +32,6 @@ export default function Loja() {
 
     return () => { unsubscribeProdutos(); unsubscribeConfig(); };
   }, []);
-
-  const verificarTelefone = async (e) => {
-    e.preventDefault();
-    if (telefone.length < 8) return alert("Digite um telefone válido!");
-
-    const q = query(collection(db, "clientes"), where("telefone", "==", telefone));
-    const resultado = await getDocs(q);
-
-    if (!resultado.empty) {
-      const dadosCliente = resultado.docs[0];
-      setNome(dadosCliente.data().nome);
-      setClienteId(dadosCliente.id);
-      setTrufasCompradasAteHoje(dadosCliente.data().trufasCompradas || 0);
-      setEtapa(3);
-    } else {
-      setEtapa(2); 
-    }
-  };
-
-  const iniciarCompraNovoCliente = (e) => {
-    e.preventDefault();
-    if (nome.trim() === '') return alert("Digite seu nome!");
-    setEtapa(3);
-  };
 
   const mudarQuantidade = (produtoId, alteracao, estoqueDisponivel) => {
     setCarrinho(prev => {
@@ -80,14 +57,39 @@ export default function Loja() {
     return { total, qtd };
   };
 
-  const finalizarPedido = async () => {
-    const { total, qtd } = calcularTotal();
-    if (qtd === 0) return alert("Selecione alguma trufa!");
+  const abrirCheckout = () => {
+    const { qtd } = calcularTotal();
+    if (qtd === 0) return alert("Selecione alguma trufa antes de finalizar!");
+    setIsCheckoutOpen(true); // Abre a janelinha pedindo os dados
+  };
 
-    let idFinalCliente = clienteId;
+  const finalizarPedido = async (e) => {
+    e.preventDefault();
+    if (!nome.trim() || !telefone || telefone.length < 8) {
+      return alert("Por favor, preencha seu nome e um WhatsApp válido!");
+    }
+
+    setEnviandoPedido(true);
+    const { total, qtd } = calcularTotal();
 
     try {
-      if (!idFinalCliente) {
+      // 1. O sistema procura silenciosamente se esse cliente já comprou antes
+      const q = query(collection(db, "clientes"), where("telefone", "==", telefone));
+      const resultado = await getDocs(q);
+
+      let idFinalCliente;
+
+      if (!resultado.empty) {
+        // Cliente já existe: Pega o ID e soma as trufas novas
+        const dadosCliente = resultado.docs[0];
+        idFinalCliente = dadosCliente.id;
+        const trufasCompradasAteHoje = dadosCliente.data().trufasCompradas || 0;
+
+        await updateDoc(doc(db, "clientes", idFinalCliente), {
+          trufasCompradas: trufasCompradasAteHoje + qtd
+        });
+      } else {
+        // Cliente novo: Cria o cadastro automaticamente
         const docRef = await addDoc(collection(db, "clientes"), {
           nome: nome,
           telefone: telefone,
@@ -95,12 +97,9 @@ export default function Loja() {
           dataCadastro: new Date().toISOString()
         });
         idFinalCliente = docRef.id;
-      } else {
-        await updateDoc(doc(db, "clientes", idFinalCliente), {
-          trufasCompradas: trufasCompradasAteHoje + qtd
-        });
       }
 
+      // 2. Prepara os itens do carrinho
       const itensDoPedido = produtosCatalogo
         .filter(p => carrinho[p.id] > 0)
         .map(p => ({
@@ -110,6 +109,7 @@ export default function Loja() {
           precoVenda: p.precoVenda
         }));
 
+      // 3. Salva a encomenda no sistema
       await addDoc(collection(db, "pedidos"), {
         clienteId: idFinalCliente,
         clienteNome: nome,
@@ -120,18 +120,22 @@ export default function Loja() {
         dataPedido: new Date().toISOString()
       });
 
-      alert("Encomenda enviada com sucesso! Obrigado(a)!");
+      alert("Encomenda enviada com sucesso! Muito obrigado(a) pela preferência! 🎉");
+      
+      // Limpa tudo e volta pra loja
       setCarrinho({});
-      setEtapa(1);
+      setIsCheckoutOpen(false);
       setTelefone('');
       setNome('');
     } catch (erro) {
       alert("Erro ao enviar encomenda. Tente de novo.");
+    } finally {
+      setEnviandoPedido(false);
     }
   };
 
   const totais = calcularTotal();
-  const temCarrinhoAtivo = etapa === 3 && totais.qtd > 0; // Ajuda a saber se a barra inferior do carrinho está aparecendo
+  const temCarrinhoAtivo = totais.qtd > 0;
 
   const linkWhatsapp = configLoja.whatsapp ? `https://wa.me/55${configLoja.whatsapp.replace(/\D/g, '')}` : '#';
   const arrobaInsta = configLoja.instagram ? configLoja.instagram.replace('@', '') : '';
@@ -176,65 +180,43 @@ export default function Loja() {
           </div>
         )}
 
-        {/* Telas de Login/Nome/Compras ... */}
-        {etapa === 1 && (
-          <form className="login-box" onSubmit={verificarTelefone}>
-            <h3>Qual o seu número?</h3>
-            <p style={{ color: '#64748b', marginBottom: '15px', fontSize: '0.9rem' }}>Usamos seu número para identificar você.</p>
-            <input className="loja-input" type="tel" placeholder="Ex: (53) 99999-9999" value={telefone} onChange={(e) => setTelefone(e.target.value)} required />
-            <button className="loja-btn" type="submit">Entrar no Cardápio</button>
-          </form>
-        )}
+        {/* ================= CATÁLOGO DIRETO ================= */}
+        <div style={{ marginBottom: '20px', padding: '15px', background: '#dcfce7', borderRadius: '12px', color: '#166534' }}>
+          <strong>Ficou com vontade?</strong> Escolha seus sabores favoritos abaixo:
+        </div>
 
-        {etapa === 2 && (
-          <form className="login-box" onSubmit={iniciarCompraNovoCliente}>
-            <h3>Você é novo por aqui! 🎉</h3>
-            <p style={{ color: '#64748b', marginBottom: '15px', fontSize: '0.9rem' }}>Como podemos te chamar?</p>
-            <input className="loja-input" type="text" placeholder="Seu Nome" value={nome} onChange={(e) => setNome(e.target.value)} required />
-            <button className="loja-btn" type="submit">Ver Trufas</button>
-          </form>
-        )}
-
-        {etapa === 3 && (
-          <div>
-            <div style={{ marginBottom: '20px', padding: '15px', background: '#dcfce7', borderRadius: '12px', color: '#166534' }}>
-              <strong>Olá, {nome}!</strong> Que bom ter você aqui. Escolha seus sabores:
-            </div>
-
-            {produtosCatalogo.length === 0 ? (
-              <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
-                O catálogo está vazio no momento.
-              </div>
-            ) : (
-              produtosCatalogo.map(p => {
-                const estoqueAtual = p.estoque || 0;
-                const estaEsgotado = estoqueAtual === 0;
-                
-                return (
-                  <div key={p.id} className="trufa-card" style={{ opacity: estaEsgotado ? 0.6 : 1 }}>
-                    <div className="trufa-info">
-                      <h3>{p.nome}</h3>
-                      <p>R$ {(p.precoVenda || 0).toFixed(2).replace('.', ',')}</p>
-                      
-                      {estaEsgotado ? (
-                        <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>Esgotado 😢</span>
-                      ) : estoqueAtual < 15 ? (
-                        <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔥 Aproveite, restam apenas {estoqueAtual} unid!</span>
-                      ) : (
-                        <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Disponível em estoque</span>
-                      )}
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <button className="contador-btn" onClick={() => mudarQuantidade(p.id, -1, estoqueAtual)} disabled={estaEsgotado}>-</button>
-                      <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{carrinho[p.id] || 0}</span>
-                      <button className="contador-btn" onClick={() => mudarQuantidade(p.id, 1, estoqueAtual)} disabled={estaEsgotado}>+</button>
-                    </div>
-                  </div>
-                )
-              })
-            )}
+        {produtosCatalogo.length === 0 ? (
+          <div style={{ textAlign: 'center', padding: '30px', color: '#94a3b8' }}>
+            O catálogo está vazio no momento.
           </div>
+        ) : (
+          produtosCatalogo.map(p => {
+            const estoqueAtual = p.estoque || 0;
+            const estaEsgotado = estoqueAtual === 0;
+            
+            return (
+              <div key={p.id} className="trufa-card" style={{ opacity: estaEsgotado ? 0.6 : 1 }}>
+                <div className="trufa-info">
+                  <h3>{p.nome}</h3>
+                  <p>R$ {(p.precoVenda || 0).toFixed(2).replace('.', ',')}</p>
+                  
+                  {estaEsgotado ? (
+                    <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>Esgotado 😢</span>
+                  ) : estoqueAtual < 15 ? (
+                    <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔥 Aproveite, restam apenas {estoqueAtual} unid!</span>
+                  ) : (
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Disponível em estoque</span>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, -1, estoqueAtual)} disabled={estaEsgotado}>-</button>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{carrinho[p.id] || 0}</span>
+                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, 1, estoqueAtual)} disabled={estaEsgotado}>+</button>
+                </div>
+              </div>
+            )
+          })
         )}
 
       </div>
@@ -248,9 +230,65 @@ export default function Loja() {
               R$ {totais.total.toFixed(2).replace('.', ',')}
             </div>
           </div>
-          <button className="loja-btn" style={{ width: 'auto', padding: '12px 25px' }} onClick={finalizarPedido}>
+          <button className="loja-btn" style={{ width: 'auto', padding: '12px 25px' }} onClick={abrirCheckout}>
             Fazer Encomenda 🚀
           </button>
+        </div>
+      )}
+
+      {/* ================= POP-UP DE CHECKOUT (Para celular) ================= */}
+      {isCheckoutOpen && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          backgroundColor: 'rgba(15, 23, 42, 0.7)', display: 'flex', 
+          justifyContent: 'center', alignItems: 'flex-end', zIndex: 1000, backdropFilter: 'blur(4px)'
+        }} onClick={() => setIsCheckoutOpen(false)}>
+          
+          {/* Caixa que sobe debaixo pra cima */}
+          <div style={{
+            background: 'white', width: '100%', maxWidth: '500px',
+            borderTopLeftRadius: '24px', borderTopRightRadius: '24px',
+            padding: '25px', paddingBottom: '40px', boxShadow: '0 -10px 25px rgba(0,0,0,0.1)'
+          }} onClick={e => e.stopPropagation()}>
+            
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem' }}>Quase lá! 📝</h2>
+              <button onClick={() => setIsCheckoutOpen(false)} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#94a3b8', cursor: 'pointer' }}>✖</button>
+            </div>
+
+            <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.9rem' }}>
+              Deixe seus dados para identificarmos a sua encomenda.
+            </p>
+
+            <form onSubmit={finalizarPedido}>
+              <div style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', color: '#475569', marginBottom: '8px', fontSize: '0.9rem' }}>Como você se chama?</label>
+                <input 
+                  type="text" required value={nome} onChange={(e) => setNome(e.target.value)}
+                  placeholder="Seu Nome e Sobrenome"
+                  style={{ width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <div style={{ marginBottom: '25px' }}>
+                <label style={{ display: 'block', fontWeight: 'bold', color: '#475569', marginBottom: '8px', fontSize: '0.9rem' }}>Seu WhatsApp</label>
+                <input 
+                  type="tel" required value={telefone} onChange={(e) => setTelefone(e.target.value)}
+                  placeholder="(53) 99999-9999"
+                  style={{ width: '100%', padding: '12px 15px', borderRadius: '10px', border: '1px solid #cbd5e1', fontSize: '1rem', outline: 'none', boxSizing: 'border-box' }}
+                />
+              </div>
+
+              <button type="submit" disabled={enviandoPedido} style={{
+                width: '100%', padding: '15px', borderRadius: '10px', border: 'none',
+                backgroundColor: '#ec4899', color: 'white', fontWeight: 'bold', fontSize: '1.1rem',
+                cursor: enviandoPedido ? 'not-allowed' : 'pointer', opacity: enviandoPedido ? 0.7 : 1
+              }}>
+                {enviandoPedido ? 'Enviando Pedido...' : 'Confirmar Encomenda ✨'}
+              </button>
+            </form>
+
+          </div>
         </div>
       )}
 
@@ -259,7 +297,7 @@ export default function Loja() {
         telegramToken={configLoja.telegramToken} 
         telegramChatId={configLoja.telegramChatId} 
         nomeCliente={nome}
-        subido={temCarrinhoAtivo} // Passamos isso para o botão não ficar atrás da barra do carrinho!
+        subido={temCarrinhoAtivo} 
       />
 
     </div>

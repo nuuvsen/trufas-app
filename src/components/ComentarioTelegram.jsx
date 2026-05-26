@@ -4,12 +4,12 @@ export default function ComentarioTelegram({ telegramToken, telegramChatId, nome
   const [isOpen, setIsOpen] = useState(false);
   const [mensagem, setMensagem] = useState('');
   const [enviando, setEnviando] = useState(false);
+  const [enviadoComSucesso, setEnviadoComSucesso] = useState(false); // NOVO ESTADO AQUI!
 
   const enviarComentario = async (e) => {
     e.preventDefault();
     if (!mensagem.trim()) return;
 
-    // Verifica se você já cadastrou os dados do Telegram na Gerência
     if (!telegramToken || !telegramChatId) {
       alert("A loja ainda não configurou o sistema de mensagens. Tente novamente mais tarde!");
       return;
@@ -17,7 +17,6 @@ export default function ComentarioTelegram({ telegramToken, telegramChatId, nome
 
     setEnviando(true);
     try {
-      // Monta a mensagem bonita em negrito (Markdown)
       const texto = `💬 *Novo Comentário na Loja*\n\n*Cliente:* ${nomeCliente || 'Visitante'}\n*Mensagem:* ${mensagem}`;
       const url = `https://api.telegram.org/bot${telegramToken}/sendMessage`;
       
@@ -32,9 +31,8 @@ export default function ComentarioTelegram({ telegramToken, telegramChatId, nome
       });
 
       if (resposta.ok) {
-        alert("Comentário enviado com sucesso! Muito obrigado pelo feedback. 💙");
-        setMensagem('');
-        setIsOpen(false);
+        // Se deu tudo certo, em vez de fechar, mostramos a tela de sucesso!
+        setEnviadoComSucesso(true); 
       } else {
         alert("Erro ao enviar. Tente novamente mais tarde.");
       }
@@ -44,14 +42,22 @@ export default function ComentarioTelegram({ telegramToken, telegramChatId, nome
     setEnviando(false);
   };
 
-  // Se o carrinho estiver visível, o botão sobe para não ficar escondido atrás dele
+  // Função para fechar a caixinha inteira e resetar os estados
+  const fecharCaixa = () => {
+    setIsOpen(false);
+    setTimeout(() => {
+      setEnviadoComSucesso(false);
+      setMensagem('');
+    }, 300); // Aguarda a animação de fechar antes de limpar tudo
+  };
+
   const posicaoBottom = subido ? '100px' : '20px';
 
   return (
     <>
       {/* Botão Flutuante (FAB) */}
       <button 
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => isOpen ? fecharCaixa() : setIsOpen(true)}
         style={{
           position: 'fixed',
           bottom: posicaoBottom,
@@ -91,36 +97,61 @@ export default function ComentarioTelegram({ telegramToken, telegramChatId, nome
           border: '1px solid #e2e8f0',
           animation: 'fadeIn 0.2s ease-in-out'
         }}>
-          <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: '#0f172a' }}>O que achou?</h3>
-          <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0' }}>
-            Tem alguma sugestão, elogio ou sabor novo que gostaria de ver? Conta pra gente!
-          </p>
           
-          <form onSubmit={enviarComentario}>
-            <textarea 
-              rows="4" 
-              value={mensagem}
-              onChange={(e) => setMensagem(e.target.value)}
-              placeholder="Escreva sua mensagem aqui..."
-              style={{
-                width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1',
-                marginBottom: '10px', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box',
-                outline: 'none'
-              }}
-              required
-            />
-            <button 
-              type="submit" 
-              disabled={enviando}
-              style={{
-                width: '100%', padding: '10px', backgroundColor: '#3b82f6', color: 'white',
-                border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: enviando ? 'not-allowed' : 'pointer',
-                opacity: enviando ? 0.7 : 1
-              }}
-            >
-              {enviando ? 'Enviando...' : 'Enviar Mensagem 🚀'}
-            </button>
-          </form>
+          {enviadoComSucesso ? (
+            // ================= TELA DE SUCESSO =================
+            <div style={{ textAlign: 'center', padding: '10px 0' }}>
+              <div style={{ fontSize: '3rem', marginBottom: '10px' }}>💙</div>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.2rem', color: '#0f172a' }}>Mensagem Enviada!</h3>
+              <p style={{ fontSize: '0.9rem', color: '#64748b', marginBottom: '20px' }}>
+                Muito obrigado pelo seu feedback. Isso nos ajuda a melhorar!
+              </p>
+              <button 
+                onClick={fecharCaixa}
+                style={{
+                  width: '100%', padding: '10px', backgroundColor: '#e2e8f0', color: '#475569',
+                  border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: 'pointer'
+                }}
+              >
+                Fechar
+              </button>
+            </div>
+          ) : (
+            // ================= TELA DE FORMULÁRIO (PADRÃO) =================
+            <>
+              <h3 style={{ margin: '0 0 10px 0', fontSize: '1.1rem', color: '#0f172a' }}>O que achou?</h3>
+              <p style={{ fontSize: '0.85rem', color: '#64748b', margin: '0 0 15px 0' }}>
+                Tem alguma sugestão, elogio ou sabor novo que gostaria de ver? Conta pra gente!
+              </p>
+              
+              <form onSubmit={enviarComentario}>
+                <textarea 
+                  rows="4" 
+                  value={mensagem}
+                  onChange={(e) => setMensagem(e.target.value)}
+                  placeholder="Escreva sua mensagem aqui..."
+                  style={{
+                    width: '100%', padding: '10px', borderRadius: '8px', border: '1px solid #cbd5e1',
+                    marginBottom: '10px', fontFamily: 'inherit', resize: 'none', boxSizing: 'border-box',
+                    outline: 'none'
+                  }}
+                  required
+                />
+                <button 
+                  type="submit" 
+                  disabled={enviando}
+                  style={{
+                    width: '100%', padding: '10px', backgroundColor: '#3b82f6', color: 'white',
+                    border: 'none', borderRadius: '8px', fontWeight: 'bold', cursor: enviando ? 'not-allowed' : 'pointer',
+                    opacity: enviando ? 0.7 : 1
+                  }}
+                >
+                  {enviando ? 'Enviando...' : 'Enviar Mensagem 🚀'}
+                </button>
+              </form>
+            </>
+          )}
+
         </div>
       )}
     </>

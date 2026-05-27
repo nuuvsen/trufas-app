@@ -8,6 +8,7 @@ import Gerencia from './pages/Gerencia';
 import Catalogo from './pages/Catalogo';
 import Loja from './pages/Loja';
 import './App.css';
+import GerenciaBot from './components/GerenciaBot'; // ou a pasta onde você salvou
 
 // ================= IMPORTS PARA A MÁGICA OFFLINE =================
 import { db as dbLocal } from './db'; // Nosso banco offline (Dexie)
@@ -149,6 +150,7 @@ function AppContent() {
   }
 
   // Visão da Patroa (Com Sidebar responsiva)
+  // Visão da Patroa (Com Sidebar responsiva)
   return (
     <div className="app-layout">
       {/* Botão Hambúrguer - Fica no topo para abrir o menu no telemóvel */}
@@ -168,6 +170,10 @@ function AppContent() {
       </div>
 
       <main className="content-area">
+        
+        {/* 👇 OLHA O BOT AQUI! Desenhado logo no topo do conteúdo 👇 */}
+      
+
         <Routes>
           <Route path="/" element={<Menu />} />
           <Route path="/clientes" element={<Clientes />} />

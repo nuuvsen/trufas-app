@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { collection, query, where, getDocs, addDoc, updateDoc, doc, onSnapshot } from 'firebase/firestore';
 import ComentarioTelegram from '../components/ComentarioTelegram';
+import Pagamento from './Pagamento'; 
 import './Loja.css';
 
 export default function Loja() {
@@ -13,7 +14,9 @@ export default function Loja() {
   
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [enviandoPedido, setEnviandoPedido] = useState(false);
-  const [pedidoConcluido, setPedidoConcluido] = useState(false); // NOVO ESTADO AQUI!
+  
+  const [pedidoConcluido, setPedidoConcluido] = useState(false);
+  const [passoCheckout, setPassoCheckout] = useState('dados'); 
   
   const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [], telegramToken: '', telegramChatId: '' });
 
@@ -32,15 +35,44 @@ export default function Loja() {
     return () => { unsubscribeProdutos(); unsubscribeConfig(); };
   }, []);
 
-  const mudarQuantidade = (produtoId, alteracao, estoqueDisponivel) => {
+ // ==========================================
+  // 👁️ OLHEIRO DO PIX (Verifica se o bot aprovou)
+  // ==========================================
+  useEffect(() => {
+    if (isCheckoutOpen && passoCheckout === 'pix') {
+      const checarPagamento = async () => {
+        try {
+          const resposta = await fetch('http://localhost:3001/api/status-pix');
+          const dados = await resposta.json();
+
+          // Se o bot responder que a IA aprovou a imagem...
+          if (dados.status === 'aprovado') {
+            
+            // ❌ APAGUE ESTAS LINHAS:
+            // setPassoCheckout('sucesso'); 
+            // setCarrinho({}); 
+            
+            // ✅ ADICIONE ESTA LINHA:
+            // Chama a função que salva no Firebase, manda pra tela de sucesso e limpa o carrinho!
+            finalizarPedido('pix'); 
+            
+            setPedidoConcluido(true); 
+          }
+        } catch (erro) {
+          console.log("Aguardando bot responder...");
+        }
+      };
+
+      const intervalo = setInterval(checarPagamento, 3000);
+      return () => clearInterval(intervalo);
+    }
+  }, [isCheckoutOpen, passoCheckout]);
+  
+  const mudarQuantidade = (produtoId, alteracao) => {
     setCarrinho(prev => {
       const atual = prev[produtoId] || 0;
       const nova = atual + alteracao;
       if (nova < 0) return prev;
-      if (nova > estoqueDisponivel) {
-        alert("Ops! Você atingiu o limite do nosso estoque para esse sabor.");
-        return prev;
-      }
       return { ...prev, [produtoId]: nova };
     });
   };
@@ -59,23 +91,44 @@ export default function Loja() {
   const abrirCheckout = () => {
     const { qtd } = calcularTotal();
     if (qtd === 0) return alert("Selecione alguma trufa antes de finalizar!");
+    setPassoCheckout('dados'); 
     setIsCheckoutOpen(true);
   };
 
-  // Função para fechar o checkout e limpar a tela de sucesso
   const fecharCheckout = () => {
     setIsCheckoutOpen(false);
     setTimeout(() => {
-      setPedidoConcluido(false);
-    }, 300); // Dá tempo da animação de fechar acontecer antes de resetar a tela
+      setPassoCheckout('dados'); 
+    }, 300); 
   };
 
-  const finalizarPedido = async (e) => {
+  const prepararPagamentoPix = async () => {
+    setPassoCheckout('pix'); 
+
+    try {
+        await fetch('http://localhost:3001/api/iniciar-pagamento', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+                valor: totais.total, 
+                nome: nome 
+            })
+        });
+        console.log("🔔 O bot foi acordado e sabe o valor exato que deve cobrar!");
+    } catch (error) {
+        console.error("❌ Erro ao avisar o servidor:", error);
+    }
+  };
+
+  const avancarParaPagamento = (e) => {
     e.preventDefault();
     if (!nome.trim() || !telefone || telefone.length < 8) {
       return alert("Por favor, preencha seu nome e um WhatsApp válido!");
     }
+    setPassoCheckout('pagamento');
+  };
 
+  const finalizarPedido = async (metodoPagamentoEscolhido) => {
     setEnviandoPedido(true);
     const { total, qtd } = calcularTotal();
 
@@ -105,12 +158,23 @@ export default function Loja() {
 
       const itensDoPedido = produtosCatalogo
         .filter(p => carrinho[p.id] > 0)
-        .map(p => ({
-          produtoId: p.id,
-          nome: p.nome,
-          quantidade: carrinho[p.id],
-          precoVenda: p.precoVenda
-        }));
+        .map(p => {
+          const qtdPedida = carrinho[p.id];
+          const estoqueOriginal = p.estoque || 0;
+          const qtdEstoque = Math.min(qtdPedida, estoqueOriginal); 
+          const qtdEncomenda = qtdPedida > estoqueOriginal ? qtdPedida - estoqueOriginal : 0; 
+
+          return {
+            produtoId: p.id,
+            nome: p.nome,
+            quantidadeTotal: qtdPedida,
+            quantidadeEstoque: qtdEstoque,
+            quantidadeEncomenda: qtdEncomenda,
+            precoVenda: p.precoVenda
+          };
+        });
+
+      const temEncomenda = itensDoPedido.some(item => item.quantidadeEncomenda > 0);
 
       await addDoc(collection(db, "pedidos"), {
         clienteId: idFinalCliente,
@@ -119,11 +183,12 @@ export default function Loja() {
         totalTrufas: qtd,
         valorTotal: total,
         status: 'pendente',
+        formaPagamento: metodoPagamentoEscolhido,
+        contemEncomenda: temEncomenda, 
         dataPedido: new Date().toISOString()
       });
 
-      // Em vez de dar um alert(), nós ativamos a tela de sucesso!
-      setPedidoConcluido(true); 
+      setPassoCheckout('sucesso'); 
       setCarrinho({});
       setTelefone('');
       setNome('');
@@ -174,7 +239,8 @@ export default function Loja() {
         )}
 
         <div style={{ marginBottom: '20px', padding: '15px', background: '#dcfce7', borderRadius: '12px', color: '#166534' }}>
-          <strong>Ficou com vontade?</strong> Escolha seus sabores favoritos abaixo:
+          <strong>Ficou com vontade?</strong> Escolha seus sabores favoritos abaixo. <br/>
+          <span style={{fontSize: '0.85rem'}}>Se pedir mais do que temos em estoque, nós fazemos sob encomenda para você! 🥰</span>
         </div>
 
         {produtosCatalogo.length === 0 ? (
@@ -185,26 +251,34 @@ export default function Loja() {
           produtosCatalogo.map(p => {
             const estoqueAtual = p.estoque || 0;
             const estaEsgotado = estoqueAtual === 0;
+            const noCarrinho = carrinho[p.id] || 0;
+            const excedeuEstoque = noCarrinho > estoqueAtual && estoqueAtual > 0;
             
             return (
-              <div key={p.id} className="trufa-card" style={{ opacity: estaEsgotado ? 0.6 : 1 }}>
+              <div key={p.id} className="trufa-card" style={{ opacity: 1 }}>
                 <div className="trufa-info">
                   <h3>{p.nome}</h3>
                   <p>R$ {(p.precoVenda || 0).toFixed(2).replace('.', ',')}</p>
                   
                   {estaEsgotado ? (
-                    <span style={{ fontSize: '0.8rem', color: '#ef4444', fontWeight: 'bold' }}>Esgotado 😢</span>
+                    <span style={{ fontSize: '0.8rem', color: '#8b5cf6', fontWeight: 'bold' }}>Somente sob encomenda 📦</span>
                   ) : estoqueAtual < 15 ? (
-                    <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔥 Aproveite, restam apenas {estoqueAtual} unid!</span>
+                    <span style={{ fontSize: '0.8rem', color: '#f59e0b', fontWeight: 'bold' }}>🔥 {estoqueAtual} unid. a pronta-entrega</span>
                   ) : (
-                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Disponível em estoque</span>
+                    <span style={{ fontSize: '0.8rem', color: '#64748b' }}>Disponível para pronta-entrega</span>
+                  )}
+
+                  {excedeuEstoque && (
+                    <span style={{ display: 'block', marginTop: '4px', fontSize: '0.75rem', color: '#8b5cf6', fontWeight: 'bold' }}>
+                      ({noCarrinho - estoqueAtual} unidades entrarão como encomenda)
+                    </span>
                   )}
                 </div>
 
                 <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, -1, estoqueAtual)} disabled={estaEsgotado}>-</button>
-                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{carrinho[p.id] || 0}</span>
-                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, 1, estoqueAtual)} disabled={estaEsgotado}>+</button>
+                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, -1)}>-</button>
+                  <span style={{ fontSize: '1.2rem', fontWeight: 'bold' }}>{noCarrinho}</span>
+                  <button className="contador-btn" onClick={() => mudarQuantidade(p.id, 1)}>+</button>
                 </div>
               </div>
             )
@@ -226,7 +300,6 @@ export default function Loja() {
         </div>
       )}
 
-      {/* ================= POP-UP DE CHECKOUT ================= */}
       {isCheckoutOpen && (
         <div style={{
           position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
@@ -240,8 +313,7 @@ export default function Loja() {
             padding: '25px', paddingBottom: '40px', boxShadow: '0 -10px 25px rgba(0,0,0,0.1)'
           }} onClick={e => e.stopPropagation()}>
             
-            {pedidoConcluido ? (
-              // ================= TELA DE SUCESSO =================
+            {passoCheckout === 'sucesso' && (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <div style={{ fontSize: '4rem', marginBottom: '15px' }}>🎉</div>
                 <h2 style={{ margin: '0 0 10px 0', color: '#166534', fontSize: '1.8rem' }}>Tudo Certo!</h2>
@@ -255,19 +327,20 @@ export default function Loja() {
                   Voltar ao Cardápio
                 </button>
               </div>
-            ) : (
-              // ================= TELA DE FORMULÁRIO =================
+            )}
+
+            {passoCheckout === 'dados' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
-                  <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem' }}>Quase lá! 📝</h2>
+                  <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem' }}>Seus Dados 📝</h2>
                   <button onClick={fecharCheckout} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#94a3b8', cursor: 'pointer' }}>✖</button>
                 </div>
 
                 <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.9rem' }}>
-                  Deixe seus dados para identificarmos a sua encomenda.
+                  Precisamos identificar o seu pedido.
                 </p>
 
-                <form onSubmit={finalizarPedido}>
+                <form onSubmit={avancarParaPagamento}>
                   <div style={{ marginBottom: '15px' }}>
                     <label style={{ display: 'block', fontWeight: 'bold', color: '#475569', marginBottom: '8px', fontSize: '0.9rem' }}>Como você se chama?</label>
                     <input 
@@ -286,22 +359,62 @@ export default function Loja() {
                     />
                   </div>
 
-                  <button type="submit" disabled={enviandoPedido} style={{
+                  <button type="submit" style={{
                     width: '100%', padding: '15px', borderRadius: '10px', border: 'none',
-                    backgroundColor: '#ec4899', color: 'white', fontWeight: 'bold', fontSize: '1.1rem',
-                    cursor: enviandoPedido ? 'not-allowed' : 'pointer', opacity: enviandoPedido ? 0.7 : 1
+                    backgroundColor: '#ec4899', color: 'white', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer'
                   }}>
-                    {enviandoPedido ? 'Enviando Pedido...' : 'Confirmar Encomenda ✨'}
+                    Avançar para Pagamento ➔
                   </button>
                 </form>
               </>
+            )}
+
+            {passoCheckout === 'pagamento' && (
+              <>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+                  <button onClick={() => setPassoCheckout('dados')} style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: '#64748b', cursor: 'pointer' }}>⟵ Voltar</button>
+                  <h2 style={{ margin: 0, color: '#0f172a', fontSize: '1.3rem' }}>Pagamento 💳</h2>
+                  <button onClick={fecharCheckout} style={{ background: 'none', border: 'none', fontSize: '1.5rem', color: '#94a3b8', cursor: 'pointer' }}>✖</button>
+                </div>
+
+                <p style={{ color: '#64748b', marginBottom: '20px', fontSize: '0.9rem', textAlign: 'center' }}>
+                  Como você prefere pagar os <strong>R$ {totais.total.toFixed(2).replace('.', ',')}</strong>?
+                </p>
+
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+                  <button onClick={prepararPagamentoPix} style={{
+                    padding: '15px', borderRadius: '10px', border: '2px solid #10b981', background: '#d1fae5',
+                    color: '#047857', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer', display: 'flex', justifyContent: 'space-between'
+                }}>
+                    <span>Pagar agora com PIX</span>
+                    <span>💠</span>
+                  </button>
+
+                  <button onClick={() => finalizarPedido('entrega')} disabled={enviandoPedido} style={{
+                    padding: '15px', borderRadius: '10px', border: '2px solid #cbd5e1', background: '#f8fafc',
+                    color: '#334155', fontWeight: 'bold', fontSize: '1.1rem', cursor: enviandoPedido ? 'not-allowed' : 'pointer', display: 'flex', justifyContent: 'space-between'
+                  }}>
+                    <span>{enviandoPedido ? 'Finalizando...' : 'Pagar na hora da entrega'}</span>
+                    <span>🛵</span>
+                  </button>
+                </div>
+              </>
+            )}
+
+            {passoCheckout === 'pix' && (
+              <Pagamento 
+                valorTotal={totais.total} 
+                aoConcluir={() => finalizarPedido('pix')} 
+                aoVoltar={() => setPassoCheckout('pagamento')}
+                enviando={enviandoPedido}
+                nomeCliente={nome} 
+              />
             )}
 
           </div>
         </div>
       )}
 
-      {/* COMPONENTE DO TELEGRAM */}
       <ComentarioTelegram 
         telegramToken={configLoja.telegramToken} 
         telegramChatId={configLoja.telegramChatId} 

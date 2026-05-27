@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react';
 import { db } from '../firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
+// 👇 Importação do nosso Bot adicionada aqui!
+import GerenciaBot from '../components/GerenciaBot'; 
 import './Produtos.css'; 
 
 export default function Gerencia() {
@@ -112,6 +114,12 @@ export default function Gerencia() {
   return (
     <div className="produtos-container">
       <h1 className="header-title">⚙️ Gerenciar Loja do Cliente</h1>
+
+      {/* ================= CARTÃO: BOT DO WHATSAPP (NOVO!) ================= */}
+      <div className="card" style={{ borderLeft: '4px solid #10b981', paddingBottom: '0' }}>
+         {/* Renderiza o nosso painel do Bot aqui dentro! */}
+         <GerenciaBot />
+      </div>
 
       {/* ================= CARTÃO: REDES SOCIAIS ================= */}
       <div className="card">

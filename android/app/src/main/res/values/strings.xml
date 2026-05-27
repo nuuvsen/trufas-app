@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">AppTrufa</string>
+    <string name="title_activity_main">AppTrufa</string>
+    <string name="package_name">com.suaempresa.apptrufa</string>
+    <string name="custom_url_scheme">com.suaempresa.apptrufa</string>
+</resources>

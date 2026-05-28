@@ -42,7 +42,7 @@ export default function Loja() {
     if (isCheckoutOpen && passoCheckout === 'pix') {
       const checarPagamento = async () => {
         try {
-          const resposta = await fetch('http://systen.nuuvsen.com.br:3001/api/status-pix');
+          const resposta = await fetch('https://api.systen.nuuvsen.com.br/api/status-pix');
           const dados = await resposta.json();
 
           // Se o bot responder que a IA aprovou a imagem...
@@ -106,7 +106,7 @@ export default function Loja() {
     setPassoCheckout('pix'); 
 
     try {
-        await fetch('http://systen.nuuvsen.com.br:3001/api/iniciar-pagamento', {
+        await fetch('https://api.systen.nuuvsen.com.br/api/iniciar-pagamento', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 

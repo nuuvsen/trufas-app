@@ -9,7 +9,7 @@ export default function GerenciaBot() {
       try {
         // 👇 O React chama o seu próprio servidor (App)
         // O servidor receberá isso e chamará o Bot internamente via Docker!
-        const resposta = await fetch('/api/bot-status');
+        const resposta = await fetch('/api/status');
         
         if (!resposta.ok) {
           throw new Error('Falha na comunicação com o backend');

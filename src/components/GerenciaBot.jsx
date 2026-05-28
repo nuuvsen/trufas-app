@@ -8,7 +8,7 @@ export default function GerenciaBot() {
     const checarStatusBot = async () => {
       try {
         // Pede os dados para o seu servidor Node.js
-        const resposta = await fetch('https://api.systen.nuuvsen.com.br/api/status');
+        const resposta = await fetch('https://systen.nuuvsen.com.br/api/status');
         const dados = await resposta.json();
         
         setStatus(dados.status);

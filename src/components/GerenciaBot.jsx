@@ -7,13 +7,20 @@ export default function GerenciaBot() {
   useEffect(() => {
     const checarStatusBot = async () => {
       try {
-        // Pede os dados para o seu servidor Node.js
-        const resposta = await fetch('https://systen.nuuvsen.com.br/api/status');
+        // 👇 O React chama o seu próprio servidor (App)
+        // O servidor receberá isso e chamará o Bot internamente via Docker!
+        const resposta = await fetch('/api/bot-status');
+        
+        if (!resposta.ok) {
+          throw new Error('Falha na comunicação com o backend');
+        }
+
         const dados = await resposta.json();
         
         setStatus(dados.status);
         setQrCode(dados.qrCode);
       } catch (error) {
+        console.error("Erro ao buscar status:", error);
         setStatus('erro_servidor');
       }
     };
@@ -42,7 +49,7 @@ export default function GerenciaBot() {
         {status === 'erro_servidor' && (
           <div style={{ color: '#ef4444' }}>
             <h3>Servidor Desligado ❌</h3>
-            <p>O servidor Node.js (na porta 3001) não está rodando.</p>
+            <p>O servidor não conseguiu se comunicar com o container interno do bot.</p>
           </div>
         )}
 
@@ -70,7 +77,7 @@ export default function GerenciaBot() {
         {status === 'conectado' && (
           <div style={{ color: '#10b981' }}>
             <h3 style={{ fontSize: '1.5rem' }}>Bot Online e Trabalhando! ✅</h3>
-            <p>O WhatsApp está conectado e pronto para receber os comprovantes Pix.</p>
+            <p>O WhatsApp está conectado e pronto para receber os comandos.</p>
           </div>
         )}
 

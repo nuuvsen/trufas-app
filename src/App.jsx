@@ -7,8 +7,10 @@ import Produtos from './pages/Produtos';
 import Gerencia from './pages/Gerencia';
 import Catalogo from './pages/Catalogo';
 import Loja from './pages/Loja';
+import Login from './pages/Login'; // 👈 Importação da nova tela de Login
 import './App.css';
-import GerenciaBot from './components/GerenciaBot'; // ou a pasta onde você salvou
+import GerenciaBot from './components/GerenciaBot'; 
+import RotaProtegida from './components/RotaProtegida'; // 👈 Importação do Cadeado
 
 // ================= IMPORTS PARA A MÁGICA OFFLINE =================
 import { db as dbLocal } from './db'; // Nosso banco offline (Dexie)
@@ -19,7 +21,10 @@ import { collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
 // Componente que decide se mostra o menu ou não
 function AppContent() {
   const location = useLocation();
-  const isTelaDoCliente = location.pathname === '/loja';
+  
+  // 👇 Verifica se é uma tela pública (Loja ou Login). 
+  // Nessas telas a barra lateral da administração ficará escondida.
+  const isTelaPublica = ['/', '/loja', '/login'].includes(location.pathname);
 
   // Estado que controla se a Sidebar está aberta ou fechada no telemóvel
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -42,17 +47,15 @@ function AppContent() {
             
             // --- SE FOR UMA ENTREGA ---
             if (venda.acao === 'entregar') {
-              // Abate o estoque de cada item do pedido
               for (const item of venda.itens) {
                 const produtoRef = doc(db, "produtos", item.produtoId);
-                const produtoSnap = await getDoc(produtoRef); // Lê o estoque atual
+                const produtoSnap = await getDoc(produtoRef); 
                 if (produtoSnap.exists()) {
                   const estoqueAtual = produtoSnap.data().estoque || 0;
                   const novoEstoque = Math.max(0, estoqueAtual - item.quantidade);
                   await updateDoc(produtoRef, { estoque: novoEstoque });
                 }
               }
-              // Atualiza o status do pedido
               await updateDoc(doc(db, "pedidos", venda.pedidoId), {
                 status: 'entregue',
                 dataEntrega: new Date().toISOString()
@@ -72,7 +75,6 @@ function AppContent() {
               let clienteId = venda.clienteSelecionado;
               let clienteNome = '';
 
-              // Cria ou atualiza o cliente primeiro
               if (clienteId === 'novo') {
                 const docRef = await addDoc(collection(db, "clientes"), {
                   nome: venda.novoClienteNome,
@@ -94,7 +96,6 @@ function AppContent() {
                 }
               }
 
-              // Salva o pedido no banco
               await addDoc(collection(db, "pedidos"), {
                 clienteId,
                 clienteNome,
@@ -117,15 +118,10 @@ function AppContent() {
       }
     };
 
-    // Dizemos ao navegador: "Se a internet voltar, rode a sincronização"
     window.addEventListener('online', sincronizarComServidor);
-
-    // Quando o app abre, tenta sincronizar caso tenha internet
     if (navigator.onLine) {
       sincronizarComServidor();
     }
-
-    // Limpeza para não criar eventos duplicados
     return () => window.removeEventListener('online', sincronizarComServidor);
   }, []);
   // =========================================================================
@@ -135,22 +131,23 @@ function AppContent() {
     setIsSidebarOpen(!isSidebarOpen);
   };
 
-  // Função para fechar a Sidebar ao clicar num link (opcional, mas recomendado)
   const closeSidebar = () => {
     setIsSidebarOpen(false);
   };
 
-  // Se for a tela do cliente, mostra só a Loja (sem a barra lateral)
-  if (isTelaDoCliente) {
+  // 👇 RENDERIZAÇÃO DAS ROTAS PÚBLICAS
+  // Se for a Loja ou o Login, não renderiza o Layout da administração
+  if (isTelaPublica) {
     return (
       <Routes>
+        <Route path="/" element={<Loja />} />
         <Route path="/loja" element={<Loja />} />
+        <Route path="/login" element={<Login />} />
       </Routes>
     );
   }
 
-  // Visão da Patroa (Com Sidebar responsiva)
-  // Visão da Patroa (Com Sidebar responsiva)
+  // 👇 RENDERIZAÇÃO DAS ROTAS PROTEGIDAS (Visão da Patroa)
   return (
     <div className="app-layout">
       {/* Botão Hambúrguer - Fica no topo para abrir o menu no telemóvel */}
@@ -158,28 +155,22 @@ function AppContent() {
         ☰ Menu
       </button>
 
-      {/* Fundo escuro (overlay) quando o menu está aberto no celular. 
-          Clicar fora da barra também a fecha! */}
       {isSidebarOpen && (
         <div className="sidebar-overlay" onClick={closeSidebar}></div>
       )}
 
-      {/* A nossa Sidebar, que ganha a classe 'open' quando clicamos no botão */}
       <div className={`sidebar-container ${isSidebarOpen ? 'open' : ''}`}>
         <Sidebar onClose={closeSidebar} />
       </div>
 
       <main className="content-area">
-        
-        {/* 👇 OLHA O BOT AQUI! Desenhado logo no topo do conteúdo 👇 */}
-      
-
         <Routes>
-          <Route path="/" element={<Menu />} />
-          <Route path="/clientes" element={<Clientes />} />
-          <Route path="/produtos" element={<Produtos />} />
-          <Route path="/catalogo" element={<Catalogo />} />
-          <Route path="/gerencia" element={<Gerencia />} />
+          {/* Todas as telas da administração agora exigem a RotaProtegida */}
+          <Route path="/menu" element={<RotaProtegida><Menu /></RotaProtegida>} />
+          <Route path="/clientes" element={<RotaProtegida><Clientes /></RotaProtegida>} />
+          <Route path="/produtos" element={<RotaProtegida><Produtos /></RotaProtegida>} />
+          <Route path="/catalogo" element={<RotaProtegida><Catalogo /></RotaProtegida>} />
+          <Route path="/gerencia" element={<RotaProtegida><Gerencia /></RotaProtegida>} />
         </Routes>
       </main>
     </div>

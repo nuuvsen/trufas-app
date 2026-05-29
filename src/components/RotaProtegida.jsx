@@ -2,14 +2,14 @@ import React from 'react';
 import { Navigate } from 'react-router-dom';
 
 export default function RotaProtegida({ children }) {
-  // Verifica se o admin fez login e a chave está salva no navegador
+  // 👇 Agora ele procura exatamente pela chave 'Gerenciador' que você definiu no Login
   const estaLogado = localStorage.getItem('Gerenciador') === 'sim';
 
   if (!estaLogado) {
-    // Se não estiver logado, chuta o usuário de volta para o /login
+    // Se não tiver a chave, redireciona para a tela de login
     return <Navigate to="/login" replace />;
   }
 
-  // Se estiver logado, renderiza a tela normalmente (gerência, catálogo, etc)
+  // Se tiver a chave, permite o acesso!
   return children;
 }

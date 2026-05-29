@@ -18,7 +18,8 @@ export default function Loja() {
   const [pedidoConcluido, setPedidoConcluido] = useState(false);
   const [passoCheckout, setPassoCheckout] = useState('dados'); 
   
-  const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [], telegramToken: '', telegramChatId: '' });
+  // 👇 1. Adicionamos a 'chavePix' no estado inicial das configurações
+  const [configLoja, setConfigLoja] = useState({ whatsapp: '', instagram: '', fotos: [], telegramToken: '', telegramChatId: '', chavePix: '' });
 
   useEffect(() => {
     const q = query(collection(db, "produtos"), where("ativoNoCatalogo", "==", true));
@@ -36,7 +37,7 @@ export default function Loja() {
   }, []);
 
  // ==========================================
-  // 👁️ OLHEIRO DO PIX (Verifica se o bot aprovou)
+  // 👁️ OLHEIRO DO PIX (Verifica se o bot aprovou ou expirou)
   // ==========================================
   useEffect(() => {
     if (isCheckoutOpen && passoCheckout === 'pix') {
@@ -47,16 +48,12 @@ export default function Loja() {
 
           // Se o bot responder que a IA aprovou a imagem...
           if (dados.status === 'aprovado') {
-            
-            // ❌ APAGUE ESTAS LINHAS:
-            // setPassoCheckout('sucesso'); 
-            // setCarrinho({}); 
-            
-            // ✅ ADICIONE ESTA LINHA:
-            // Chama a função que salva no Firebase, manda pra tela de sucesso e limpa o carrinho!
             finalizarPedido('pix'); 
-            
             setPedidoConcluido(true); 
+          } 
+          // 👇 3. Se o bot responder que o tempo de 5 minutos acabou...
+          else if (dados.status === 'expirado') {
+            setPassoCheckout('expirado'); // Muda a tela para a mensagem de erro
           }
         } catch (erro) {
           console.log("Aguardando bot responder...");
@@ -73,7 +70,7 @@ export default function Loja() {
       const atual = prev[produtoId] || 0;
       const nova = atual + alteracao;
       if (nova < 0) return prev;
-      return { ...prev, [produtoId]: nova };
+      return { ...prev, [produtoId] : nova };
     });
   };
 
@@ -103,6 +100,12 @@ export default function Loja() {
   };
 
   const prepararPagamentoPix = async () => {
+    // Validação extra: Impede avançar se você esqueceu de cadastrar a chave no painel
+    if (!configLoja.chavePix) {
+      alert("A loja ainda não configurou a Chave PIX no sistema. Escolha pagamento na entrega!");
+      return;
+    }
+
     setPassoCheckout('pix'); 
 
     try {
@@ -111,7 +114,8 @@ export default function Loja() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ 
                 valor: totais.total, 
-                nome: nome 
+                nome: nome,
+                chavePix: configLoja.chavePix // 👇 2. Envia a chave PIX dinamicamente para o bot!
             })
         });
         console.log("🔔 O bot foi acordado e sabe o valor exato que deve cobrar!");
@@ -313,6 +317,7 @@ export default function Loja() {
             padding: '25px', paddingBottom: '40px', boxShadow: '0 -10px 25px rgba(0,0,0,0.1)'
           }} onClick={e => e.stopPropagation()}>
             
+            {/* TELA DE SUCESSO (PIX OU ENTREGA) */}
             {passoCheckout === 'sucesso' && (
               <div style={{ textAlign: 'center', padding: '20px 0' }}>
                 <div style={{ fontSize: '4rem', marginBottom: '15px' }}>🎉</div>
@@ -329,6 +334,25 @@ export default function Loja() {
               </div>
             )}
 
+            {/* 👇 TELA DE TEMPO ESGOTADO DO PIX */}
+            {passoCheckout === 'expirado' && (
+              <div style={{ textAlign: 'center', padding: '20px 0' }}>
+                <div style={{ fontSize: '4rem', marginBottom: '15px' }}>⏰</div>
+                <h2 style={{ margin: '0 0 10px 0', color: '#ef4444', fontSize: '1.8rem' }}>Tempo Esgotado!</h2>
+                <p style={{ color: '#475569', fontSize: '1rem', marginBottom: '25px' }}>
+                  O tempo limite de 5 minutos para confirmação do PIX acabou e a operação foi cancelada. 
+                  Você pode tentar novamente ou pagar na entrega.
+                </p>
+                <button onClick={() => setPassoCheckout('pagamento')} style={{
+                  width: '100%', padding: '15px', borderRadius: '10px', border: 'none',
+                  backgroundColor: '#e2e8f0', color: '#334155', fontWeight: 'bold', fontSize: '1.1rem', cursor: 'pointer'
+                }}>
+                  Voltar e Tentar Novamente
+                </button>
+              </div>
+            )}
+
+            {/* TELA DE DADOS DO CLIENTE */}
             {passoCheckout === 'dados' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -369,6 +393,7 @@ export default function Loja() {
               </>
             )}
 
+            {/* ESCOLHA DA FORMA DE PAGAMENTO */}
             {passoCheckout === 'pagamento' && (
               <>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
@@ -401,6 +426,7 @@ export default function Loja() {
               </>
             )}
 
+            {/* RENDERIZAÇÃO DO COMPONENTE DO QR CODE */}
             {passoCheckout === 'pix' && (
               <Pagamento 
                 valorTotal={totais.total} 

@@ -7,33 +7,26 @@ import Produtos from './pages/Produtos';
 import Gerencia from './pages/Gerencia';
 import Catalogo from './pages/Catalogo';
 import Loja from './pages/Loja';
-import Login from './pages/Login'; // 👈 Importação da nova tela de Login
+import Login from './pages/Login';
 import './App.css';
 import GerenciaBot from './components/GerenciaBot'; 
-import RotaProtegida from './components/RotaProtegida'; // 👈 Importação do Cadeado
+import RotaProtegida from './components/RotaProtegida';
 
-// ================= IMPORTS PARA A MÁGICA OFFLINE =================
-import { db as dbLocal } from './db'; // Nosso banco offline (Dexie)
-import { db } from './firebase'; // Nosso banco nas nuvens (Firebase)
+import { db as dbLocal } from './db'; 
+import { db } from './firebase'; 
 import { collection, addDoc, updateDoc, doc, getDoc } from 'firebase/firestore';
-// =================================================================
 
-// Componente que decide se mostra o menu ou não
 function AppContent() {
   const location = useLocation();
   
-  // 👇 Verifica se é uma tela pública (Loja ou Login). 
-  // Nessas telas a barra lateral da administração ficará escondida.
+  // Verifica se é uma tela pública. Nessas telas a barra lateral não aparece.
   const isTelaPublica = ['/', '/loja', '/login'].includes(location.pathname);
 
-  // Estado que controla se a Sidebar está aberta ou fechada no telemóvel
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  // ================= O GUARDIÃO DA INTERNET (SINCRONIZAÇÃO) =================
   useEffect(() => {
     const sincronizarComServidor = async () => {
       try {
-        // 1. Pega tudo que está 'pendente' no banco do celular
         const vendasPendentes = await dbLocal.vendas
           .where('statusSincronizacao')
           .equals('pendente')
@@ -42,10 +35,7 @@ function AppContent() {
         if (vendasPendentes.length > 0) {
           console.log("Temos internet! Sincronizando coisas offline...", vendasPendentes);
 
-          // 2. Passa por cada ação pendente e envia pro Firebase
           for (let venda of vendasPendentes) {
-            
-            // --- SE FOR UMA ENTREGA ---
             if (venda.acao === 'entregar') {
               for (const item of venda.itens) {
                 const produtoRef = doc(db, "produtos", item.produtoId);
@@ -61,16 +51,12 @@ function AppContent() {
                 dataEntrega: new Date().toISOString()
               });
             } 
-            
-            // --- SE FOR UM CANCELAMENTO ---
             else if (venda.acao === 'cancelar') {
               await updateDoc(doc(db, "pedidos", venda.pedidoId), {
                 status: 'cancelado',
                 dataCancelamento: new Date().toISOString()
               });
             } 
-            
-            // --- SE FOR UM NOVO PEDIDO ---
             else if (venda.acao === 'novo_pedido') {
               let clienteId = venda.clienteSelecionado;
               let clienteNome = '';
@@ -106,11 +92,8 @@ function AppContent() {
                 dataPedido: venda.dataPedido
               });
             }
-
-            // 3. Deu tudo certo com essa venda? Marca como concluído no celular!
             await dbLocal.vendas.update(venda.id, { statusSincronizacao: 'concluido' });
           }
-
           alert("✨ Uhul! Suas vendas feitas offline foram sincronizadas com sucesso!");
         }
       } catch (error) {
@@ -124,48 +107,40 @@ function AppContent() {
     }
     return () => window.removeEventListener('online', sincronizarComServidor);
   }, []);
-  // =========================================================================
 
-  // Função para abrir e fechar a Sidebar
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setIsSidebarOpen(false);
 
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
-
-  // 👇 RENDERIZAÇÃO DAS ROTAS PÚBLICAS
-  // Se for a Loja ou o Login, não renderiza o Layout da administração
-  if (isTelaPublica) {
-    return (
-      <Routes>
-        <Route path="/" element={<Loja />} />
-        <Route path="/loja" element={<Loja />} />
-        <Route path="/login" element={<Login />} />
-      </Routes>
-    );
-  }
-
-  // 👇 RENDERIZAÇÃO DAS ROTAS PROTEGIDAS (Visão da Patroa)
+  // 👇 A MÁGICA ESTÁ AQUI: Um único bloco de retorno estruturado!
   return (
-    <div className="app-layout">
-      {/* Botão Hambúrguer - Fica no topo para abrir o menu no telemóvel */}
-      <button className="menu-hamburger" onClick={toggleSidebar}>
-        ☰ Menu
-      </button>
+    <div className={isTelaPublica ? "" : "app-layout"}>
+      
+      {/* A Barra Lateral só é injetada se NÃO for uma tela pública */}
+      {!isTelaPublica && (
+        <>
+          <button className="menu-hamburger" onClick={toggleSidebar}>
+            ☰ Menu
+          </button>
 
-      {isSidebarOpen && (
-        <div className="sidebar-overlay" onClick={closeSidebar}></div>
+          {isSidebarOpen && (
+            <div className="sidebar-overlay" onClick={closeSidebar}></div>
+          )}
+
+          <div className={`sidebar-container ${isSidebarOpen ? 'open' : ''}`}>
+            <Sidebar onClose={closeSidebar} />
+          </div>
+        </>
       )}
 
-      <div className={`sidebar-container ${isSidebarOpen ? 'open' : ''}`}>
-        <Sidebar onClose={closeSidebar} />
-      </div>
-
-      <main className="content-area">
+      {/* A área principal abriga TODAS as rotas, o React Router lida com elas sem quebrar */}
+      <main className={isTelaPublica ? "" : "content-area"}>
         <Routes>
-          {/* Todas as telas da administração agora exigem a RotaProtegida */}
+          {/* ROTAS PÚBLICAS */}
+          <Route path="/" element={<Loja />} />
+          <Route path="/loja" element={<Loja />} />
+          <Route path="/login" element={<Login />} />
+
+          {/* ROTAS PROTEGIDAS */}
           <Route path="/menu" element={<RotaProtegida><Menu /></RotaProtegida>} />
           <Route path="/clientes" element={<RotaProtegida><Clientes /></RotaProtegida>} />
           <Route path="/produtos" element={<RotaProtegida><Produtos /></RotaProtegida>} />

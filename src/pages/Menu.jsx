@@ -15,8 +15,8 @@ export default function Menu() {
   const [isHistoricoOpen, setIsHistoricoOpen] = useState(false); 
 
   // ================= ESTADOS PARA SUBSTITUIR OS ALERTS FEIOS =================
-  const [notificacao, setNotificacao] = useState(null); // Para mostrar "Entregue com sucesso!" no topo
-  const [confirmacaoAcao, setConfirmacaoAcao] = useState(null); // Guarda os dados para o Modal de Confirmação
+  const [notificacao, setNotificacao] = useState(null); 
+  const [confirmacaoAcao, setConfirmacaoAcao] = useState(null); 
 
   useEffect(() => {
     const unsubProdutos = onSnapshot(collection(db, "produtos"), (snapshot) => {
@@ -38,7 +38,7 @@ export default function Menu() {
   // Função para mostrar um aviso bonito que some sozinho
   const mostrarNotificacao = (mensagem, tipo = 'sucesso') => {
     setNotificacao({ mensagem, tipo });
-    setTimeout(() => setNotificacao(null), 3000); // Some após 3 segundos
+    setTimeout(() => setNotificacao(null), 3000); 
   };
 
   // Funções que apenas ABREM a janela bonita de confirmação
@@ -65,7 +65,6 @@ export default function Menu() {
   };
 
   // Funções REAIS que processam as coisas no banco de dados
- // Funções REAIS que processam as coisas no banco de dados
   const processarAcaoConfirmada = async () => {
     if (!confirmacaoAcao) return;
 
@@ -79,16 +78,15 @@ export default function Menu() {
           await dbLocal.vendas.add({
             acao: 'entregar',
             pedidoId: pedido.id,
-            itens: pedido.itens, // Precisamos dos itens para abater o estoque depois
+            itens: pedido.itens, 
             statusSincronizacao: 'pendente'
           });
           mostrarNotificacao("📴 Sem internet! A entrega foi salva no celular.");
           setConfirmacaoAcao(null);
-          return; // Para o código aqui para não tentar ir pro Firebase e dar erro!
+          return; 
         }
         // =======================================================
 
-        // SE TIVER INTERNET: O seu código original do Firebase continua aqui!
         for (const item of pedido.itens) {
           const produtoFisico = produtos.find(p => p.id === item.produtoId);
           if (produtoFisico) {
@@ -107,11 +105,9 @@ export default function Menu() {
       }
     } 
     
-    // (A parte do cancelar continua igual)
     else if (tipo === 'cancelar') {
       try {
         if (!navigator.onLine) {
-           // Opcional: Salvar cancelamentos offline também
            await dbLocal.vendas.add({ acao: 'cancelar', pedidoId: pedido.id, statusSincronizacao: 'pendente' });
            mostrarNotificacao("📴 Cancelamento salvo offline.");
            setConfirmacaoAcao(null);
@@ -237,7 +233,27 @@ export default function Menu() {
                   <div className="item-card border-left-destaque" key={pedido.id}>
                     <div className="card-header">
                       <div>
-                        <h3 className="card-title">{pedido.clienteNome}</h3>
+                        {/* AQUI ESTÁ A LÓGICA DO BADGE "PAGO PIX" */}
+                        <h3 className="card-title" style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          {pedido.clienteNome}
+                          
+                          {(pedido.formaPagamento?.toLowerCase() === 'pix' || pedido.metodoPagamento?.toLowerCase() === 'pix') && (
+                            <span style={{
+                              backgroundColor: '#10b981', // Verde sucesso
+                              color: 'white',
+                              padding: '2px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.7rem',
+                              fontWeight: 'bold',
+                              letterSpacing: '0.5px',
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              boxShadow: '0 2px 4px rgba(16, 185, 129, 0.2)'
+                            }}>
+                              ✓ PAGO PIX
+                            </span>
+                          )}
+                        </h3>
                         <div className="card-subtitle">📅 {pedido.dataPedido ? new Date(pedido.dataPedido).toLocaleDateString('pt-BR') : 'Sem data'}</div>
                       </div>
                       <div className="valor-destaque">R$ {(pedido.valorTotal || 0).toFixed(2).replace('.', ',')}</div>
@@ -251,7 +267,6 @@ export default function Menu() {
                         ))}
                       </ul>
                       
-                      {/* Trocamos os botões para chamar nossa janelinha personalizada! */}
                       <div style={{ display: 'flex', gap: '10px', width: '100%', marginTop: '15px' }}>
                         <button className="btn btn-danger" style={{ flex: 1, padding: '10px 5px' }} onClick={() => pedirConfirmacaoCancelamento(pedido)}>
                           ✖ Cancelar
